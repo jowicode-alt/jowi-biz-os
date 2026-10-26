@@ -25,7 +25,9 @@ try {
     await setDoc(doc(db, "users/outsider-1"), { uid: "outsider-1", name: "Outsider", email: "outsider@example.test", institutionId: "inst-2", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-2"), { name: "Other Institution", ownerId: "outsider-1", status: "pilot" });
     await setDoc(doc(db, "institutions/inst-2/members/outsider-1"), { uid: "outsider-1", role: "owner", status: "active" });
-    await setDoc(doc(db, "institutions/inst-1/campuses/campus-1"), { name: "Main Campus", city: "Kampala", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });\n    await setDoc(doc(db, "institutions/inst-1/campuses/campus-2"), { name: "Other Campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });\n    await setDoc(doc(db, "institutions/inst-1/classes/class-1"), { name: "Class 1", code: "C1", campusId: "campus-1", createdAt: new Date(), createdBy: "owner-1" });
+    await setDoc(doc(db, "institutions/inst-1/campuses/campus-1"), { name: "Main Campus", city: "Kampala", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });
+    await setDoc(doc(db, "institutions/inst-1/campuses/campus-2"), { name: "Other Campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });
+    await setDoc(doc(db, "institutions/inst-1/classes/class-1"), { name: "Class 1", code: "C1", campusId: "campus-1", createdAt: new Date(), createdBy: "owner-1" });
   });
 
   await assertSucceeds(getDoc(doc(owner, "institutions/inst-1")));
@@ -33,11 +35,14 @@ try {
   await assertFails(getDoc(doc(outsider, "institutions/inst-1")));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/attendance/forged"), { studentId: "x", present: true }));
   await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
-  await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1"), { name: "Hijacked institution" }));\n  await assertSucceeds(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-allowed"), { name: "Allowed class", code: "A1", campusId: "campus-1", createdAt: new Date(), createdBy: "campus-admin-1" }));\n  await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-denied"), { name: "Denied class", code: "D1", campusId: "campus-2", createdAt: new Date(), createdBy: "campus-admin-1" }));\n  await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/campuses/campus-2"), { name: "Hijacked campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "campus-admin-1" }));
+  await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1"), { name: "Hijacked institution" }));
+  await assertSucceeds(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-allowed"), { name: "Allowed class", code: "A1", campusId: "campus-1", createdAt: new Date(), createdBy: "campus-admin-1" }));
+  await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-denied"), { name: "Denied class", code: "D1", campusId: "campus-2", createdAt: new Date(), createdBy: "campus-admin-1" }));
+  await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/campuses/campus-2"), { name: "Hijacked campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "campus-admin-1" }));
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
 
   const now = Date.now();
-  const validSession = { title: "Morning class", classId: "class-1", status: "active", durationMinutes: 45, requiresGps: true, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: now, expiresAt: now + 45 * 60000, activeCode: "123456", codeUpdatedAt: now, codeVersion: 1 };
+  const validSession = { title: "Morning class", classId: "class-1", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: now, expiresAt: now + 45 * 60000, activeCode: "123456", codeUpdatedAt: now, codeVersion: 1 };
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), validSession));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-bad-code"), { ...validSession, activeCode: "123" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-extra-field"), { ...validSession, unapproved: true }));
