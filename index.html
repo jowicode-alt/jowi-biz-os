@@ -4,32 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#142c25">
-  <title>Jowi Biz OS — Run your business in one place</title>
+  <title>Jowi School OS — School management in one place</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#"><span class="brand-mark">J</span><span>Jowi <b>Biz OS</b></span></a>
-    <span class="secure-note" id="topbar-note">One workspace. Your whole business.</span>
+    <span class="secure-note" id="topbar-note">One workspace. Your whole school.</span>
     <button id="signout-btn" class="text-button hidden" type="button">Sign out</button>
   </header>
   <main class="shell" id="auth-view">
     <section class="intro">
-      <span class="eyebrow">BUSINESS OPERATIONS, SIMPLIFIED</span>
-      <h1>Spend less time managing.<br><em>More time growing.</em></h1>
-      <p>Get a workspace designed around the real workflows of your industry, from school registers and hotel room boards to stock control and field-service job cards.</p>
+      <span class="eyebrow">SCHOOL MANAGEMENT, SIMPLIFIED</span>
+      <h1>Spend less time on paperwork.<br><em>More time teaching.</em></h1>
+      <p>Manage admissions, student records, fees, attendance, academic results and school operations from one secure workspace.</p>
       <div class="feature-list">
-        <div><span>✓</span> Industry-specific operational workflows</div>
-        <div><span>✓</span> Tools for the roles in your industry</div>
-        <div><span>✓</span> Records and reports that fit your work</div>
+        <div><span>✓</span> Connected school administration workflows</div>
+        <div><span>✓</span> Tools for school administrators, teachers and bursars</div>
+        <div><span>✓</span> Student, academic and financial reports</div>
       </div>
-      <div class="industry-note"><b>Made to adapt.</b> Shops, salons, schools, contractors, restaurants, agencies and service teams.</div>
+      <div class="industry-note"><b>Built for schools.</b> Admissions, student records, fees, attendance, academics and reporting in one place.</div>
     </section>
     <section class="auth-card">
       <div class="card-heading">
         <span class="eyebrow">YOUR WORKSPACE</span>
         <h2 id="auth-title">Welcome back</h2>
-        <p id="auth-subtitle">Sign in to manage your business.</p>
+        <p id="auth-subtitle">Sign in to manage your school.</p>
       </div>
       <form id="auth-form">
         <label for="email">Email address</label>
@@ -44,7 +44,7 @@
         <button id="forgot-password" class="text-button forgot-password" type="button">Forgot password?</button>
         <p id="auth-message" role="status" aria-live="polite"></p>
       </form>
-      <p class="switch-copy"><span id="switch-label">New to Jowi Biz OS?</span> <button class="text-button" id="switch-mode" type="button">Create account</button></p>
+      <p class="switch-copy"><span id="switch-label">New to Jowi School OS?</span> <button class="text-button" id="switch-mode" type="button">Create account</button></p>
       <p class="small-print">Your business information is private to your authorised workspace members.</p>
     </section>
   </main>
@@ -62,21 +62,12 @@
       <h1>Set up your business</h1>
       <p class="muted">Create your workspace once. You can configure more details later.</p>
       <form id="workspace-form">
-        <label for="business-name">Business or organisation name</label>
-        <input id="business-name" required maxlength="100" placeholder="e.g. Jowi Services">
-        <label for="industry">Industry</label>
+        <label for="business-name">School name</label>
+        <input id="business-name" required maxlength="100" placeholder="e.g. Bright Future Primary School">
+        <label for="industry">School type</label>
         <select id="industry" required>
-          <option value="">Choose your industry</option>
-          <option>General retail shop</option><option>Supermarket / Mini-mart</option><option>Clothing / Fashion shop</option><option>Furniture / Home goods shop</option><option>Electronics / Phone shop</option><option>Hardware / Building supplies shop</option>
-          <option>Salon</option><option>Barbershop</option><option>Spa / Wellness centre</option>
+          <option value="">Choose school type</option>
           <option>Nursery / Primary school</option><option>Secondary school</option><option>College / Training institute</option>
-          <option>Church / Faith organisation</option><option>NGO / Community organisation</option>
-          <option>Restaurant</option><option>Catering business</option><option>Hotel / Guesthouse</option><option>Tour operator / Travel agency</option><option>Transport / Taxi / Shuttle</option>
-          <option>Construction contractor</option><option>Cleaning company</option><option>Clinic / Medical practice</option><option>Pharmacy</option>
-          <option>Real estate agency</option><option>Property / Rental management</option>
-          <option>Printing shop</option><option>Branding / Advertising agency</option><option>Web / Creative agency</option><option>Event planner / Decorator</option>
-          <option>Mechanic / Garage</option><option>Plumbing / Electrical services</option><option>Repair / Field technician</option>
-          <option>Wholesale supplier / Distributor</option><option>Other specialist business</option>
         </select>
         <label for="business-country">Country</label>
         <select id="business-country" required><option value="">Choose your country</option></select>
@@ -95,11 +86,11 @@
         <article class="overview-metric"><span>Total records</span><strong id="metric-records">—</strong><small>Saved operational records</small></article>
         <article class="overview-metric"><span>Workspace status</span><strong class="metric-status">Active</strong><small>Your workspace is ready</small></article>
       </div>
-      <section class="analytics-grid" aria-label="Business analytics">
-        <article class="analytics-card"><span class="eyebrow">PERFORMANCE</span><h2>Sales &amp; expenses</h2><p class="muted">Monthly totals from saved workspace records.</p><div id="analytics-chart" class="analytics-chart"><p class="analytics-empty">Loading your business activity…</p></div><div class="chart-legend"><span><i class="legend-sales"></i>Sales</span><span><i class="legend-expenses"></i>Expenses</span></div></article>
-        <article class="analytics-card"><span class="eyebrow">ACTIVITY</span><h2>Workspace activity</h2><p class="muted">Records saved in your workspace.</p><div id="activity-summary" class="activity-summary"><div><span>Sales records</span><strong>—</strong></div><div><span>Expense records</span><strong>—</strong></div></div></article>
+      <section class="analytics-grid" aria-label="School analytics">
+        <article class="analytics-card"><span class="eyebrow">SCHOOL FINANCE</span><h2>Fees billed &amp; collected</h2><p class="muted">Monthly totals from recorded student fee entries.</p><div id="analytics-chart" class="analytics-chart"><p class="analytics-empty">Loading your business activity…</p></div><div class="chart-legend"><span><i class="legend-sales"></i>Sales</span><span><i class="legend-expenses"></i>Expenses</span></div></article>
+        <article class="analytics-card"><span class="eyebrow">ACTIVITY</span><h2>School activity</h2><p class="muted">Saved school records.</p><div id="activity-summary" class="activity-summary"><div><span>Student records</span><strong>—</strong></div><div><span>Fee records</span><strong>—</strong></div></div></article>
       </section>
-      <section class="overview-panel"><div><h2>Run today's work</h2><p>Open a module from the sidebar to record activity, update its status, and review saved records.</p></div><div class="overview-hint"><span class="overview-hint-icon">↗</span><span><b>Industry-specific tools</b><small>Only the tools mapped to your selected industry are listed.</small></span></div></section>
+      <section class="overview-panel"><div><h2>Run your school</h2><p>Open a module from the sidebar to record activity, update its status, and review saved records.</p></div><div class="overview-hint"><span class="overview-hint-icon">↗</span><span><b>Industry-specific tools</b><small>Only school management modules are available.</small></span></div></section>
       <p id="dashboard-message" role="status" aria-live="polite"></p>
     </section>
     <section id="module-view" class="auth-card module-view hidden" aria-live="polite">
@@ -113,7 +104,7 @@
     </section>
     </div>
   </main>
-  <footer>Jowi Biz OS <span>•</span> Built for businesses of every size</footer>
+  <footer>Jowi School OS <span>•</span> School management, made simpler</footer>
   <script type="module" src="app.js"></script>
 </body>
 </html>
