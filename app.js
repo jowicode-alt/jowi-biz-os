@@ -72,6 +72,173 @@ switchButton.addEventListener("click", () => {
   mode = mode === "signin" ? "signup" : "signin";
   updateMode();
 
+
+});
+
+function readableError(error) {
+  const messages = {
+    "auth/email-already-in-use": "That email already has an account. Try signing in.",
+    "auth/invalid-email": "Enter a valid email address.",
+    "auth/weak-password": "Choose a stronger password with at least 6 characters.",
+    "auth/invalid-credential": "Email or password is incorrect.",
+    "auth/operation-not-allowed": "Enable Email/Password sign-in in Firebase Authentication.",
+    "permission-denied": "Firestore denied access. Check that the published rules match this app.",
+    "unavailable": "Firebase is temporarily unavailable. Check your connection and try again."
+  };
+  return messages[error.code] || error.message || "Something went wrong. Please try again.";
+}
+
+async function openWorkspace(user) {
+  if (!user || !firestoreApi || workspaceLoading) return;
+  workspaceLoading = true;
+  currentUser = user;
+  showWorkspaceShell();
+  setupPanel.classList.add("hidden");
+  dashboardPanel.classList.add("hidden");
+  setMessage($("#dashboard-message"), "");
+  try {
+    const { collection, query, where, getDocs } = firestoreApi;
+    const q = query(collection(firestoreApi.db, "businesses"), where("ownerId", "==", user.uid));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      setupPanel.classList.remove("hidden");
+      $("#business-name").focus();
+    } else {
+      const businessDoc = snapshot.docs[0];
+      currentBusinessId = businessDoc.id;
+      const business = businessDoc.data();
+      moduleView.classList.add("hidden");
+      $("#dashboard-business-name").textContent = business.name || "Your business";
+      $("#dashboard-business-meta").textContent = [business.industry, business.country].filter(Boolean).join(" • ");
+      dashboardPanel.classList.remove("hidden");
+    }
+  } catch (error) {
+    setupPanel.classList.remove("hidden");
+    setMessage(workspaceMessage, "Could not load your workspace. " + readableError(error));
+    console.error("Workspace loading failed:", error);
+  } finally {
+    workspaceLoading = false;
+  }
+}
+
+try {
+  const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
+    import("https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"),
+    import("https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js")
+  ]);
+  const app = initializeApp(firebaseConfig);
+  const auth = authModule.getAuth(app);
+  const db = firestoreModule.getFirestore(app);
+  authApi = {
+    auth,
+    createUserWithEmailAndPassword: authModule.createUserWithEmailAndPassword,
+    signInWithEmailAndPassword: authModule.signInWithEmailAndPassword,
+    sendPasswordResetEmail: authModule.sendPasswordResetEmail,
+    updateProfile: authModule.updateProfile,
+    signOut: authModule.signOut,
+    onAuthStateChanged: authModule.onAuthStateChanged
+  };
+  firestoreApi = {
+    db,
+    collection: firestoreModule.collection,
+    query: firestoreModule.query,
+    where: firestoreModule.where,
+    getDocs: firestoreModule.getDocs,
+    addDoc: firestoreModule.addDoc,
+    deleteDoc: firestoreModule.deleteDoc,
+    serverTimestamp: firestoreModule.serverTimestamp
+  };
+  authApi.onAuthStateChanged(auth, user => {
+    if (user) {
+      openWorkspace(user);
+    } else {
+      currentUser = null;
+      showAuth();
+    }
+  });
+} catch (error) {
+  setMessage(message, "Could not initialise Firebase. Check the web app configuration, enabled Firestore database and internet connection.");
+  console.error(error);
+}
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!authApi) {
+    setMessage(message, "Firebase is not ready yet. Refresh the page and try again.");
+    return;
+  }
+  submitButton.disabled = true;
+  setMessage(message, "");
+  try {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    let credential;
+    if (mode === "signup") {
+      credential = await authApi.createUserWithEmailAndPassword(authApi.auth, email, password);
+      await authApi.updateProfile(credential.user, { displayName: nameInput.value.trim() });
+    } else {
+      credential = await authApi.signInWithEmailAndPassword(authApi.auth, email, password);
+    }
+    currentUser = credential.user;
+    await openWorkspace(credential.user);
+  } catch (error) {
+    setMessage(message, readableError(error));
+    console.error("Authentication failed:", error);
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+workspaceForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!currentUser || !firestoreApi) {
+    setMessage(workspaceMessage, "Your session is not ready. Please sign in again.");
+    return;
+  }
+  workspaceSubmit.disabled = true;
+  setMessage(workspaceMessage, "");
+  try {
+    const business = {
+      name: $("#business-name").value.trim(),
+      industry: $("#industry").value,
+      country: $("#business-country").value.trim(),
+      ownerId: currentUser.uid,
+      ownerEmail: currentUser.email || "",
+      createdAt: firestoreApi.serverTimestamp(),
+      updatedAt: firestoreApi.serverTimestamp(),
+      plan: "free",
+      status: "active"
+    };
+    if (!business.name || !business.industry || !business.country) {
+      throw new Error("Please complete all workspace fields.");
+    }
+    await firestoreApi.addDoc(firestoreApi.collection(firestoreApi.db, "businesses"), business);
+    currentBusinessId = (await firestoreApi.getDocs(firestoreApi.query(firestoreApi.collection(firestoreApi.db, "businesses"), firestoreApi.where("ownerId", "==", currentUser.uid)))).docs[0]?.id || null;
+    $("#dashboard-business-name").textContent = business.name;
+    $("#dashboard-business-meta").textContent = [business.industry, business.country].filter(Boolean).join(" • ");
+    setupPanel.classList.add("hidden");
+    dashboardPanel.classList.remove("hidden");
+  } catch (error) {
+    setMessage(workspaceMessage, "Could not create workspace. " + readableError(error));
+    console.error("Workspace creation failed:", error);
+  } finally {
+    workspaceSubmit.disabled = false;
+  }
+});
+
+signoutButton.addEventListener("click", async () => {
+  if (!authApi) return;
+  signoutButton.disabled = true;
+  try {
+    await authApi.signOut(authApi.auth);
+  } catch (error) {
+    setMessage($("#dashboard-message"), "Sign out failed. " + readableError(error));
+  } finally {
+    signoutButton.disabled = false;
+  }
+});
+
 const countries = [
 "Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan",
 "Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi",
@@ -274,171 +441,5 @@ recordForm.addEventListener("submit", async event => {
 
 $("#module-back").addEventListener("click",()=>{moduleView.classList.add("hidden");dashboardPanel.classList.remove("hidden");activeModule=null;});
 document.querySelectorAll("[data-module]").forEach(card=>card.addEventListener("click",()=>openModule(card.dataset.module)));
-
-});
-
-function readableError(error) {
-  const messages = {
-    "auth/email-already-in-use": "That email already has an account. Try signing in.",
-    "auth/invalid-email": "Enter a valid email address.",
-    "auth/weak-password": "Choose a stronger password with at least 6 characters.",
-    "auth/invalid-credential": "Email or password is incorrect.",
-    "auth/operation-not-allowed": "Enable Email/Password sign-in in Firebase Authentication.",
-    "permission-denied": "Firestore denied access. Check that the published rules match this app.",
-    "unavailable": "Firebase is temporarily unavailable. Check your connection and try again."
-  };
-  return messages[error.code] || error.message || "Something went wrong. Please try again.";
-}
-
-async function openWorkspace(user) {
-  if (!user || !firestoreApi || workspaceLoading) return;
-  workspaceLoading = true;
-  currentUser = user;
-  showWorkspaceShell();
-  setupPanel.classList.add("hidden");
-  dashboardPanel.classList.add("hidden");
-  setMessage($("#dashboard-message"), "");
-  try {
-    const { collection, query, where, getDocs } = firestoreApi;
-    const q = query(collection(firestoreApi.db, "businesses"), where("ownerId", "==", user.uid));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) {
-      setupPanel.classList.remove("hidden");
-      $("#business-name").focus();
-    } else {
-      const businessDoc = snapshot.docs[0];
-      currentBusinessId = businessDoc.id;
-      const business = businessDoc.data();
-      moduleView.classList.add("hidden");
-      $("#dashboard-business-name").textContent = business.name || "Your business";
-      $("#dashboard-business-meta").textContent = [business.industry, business.country].filter(Boolean).join(" • ");
-      dashboardPanel.classList.remove("hidden");
-    }
-  } catch (error) {
-    setupPanel.classList.remove("hidden");
-    setMessage(workspaceMessage, "Could not load your workspace. " + readableError(error));
-    console.error("Workspace loading failed:", error);
-  } finally {
-    workspaceLoading = false;
-  }
-}
-
-try {
-  const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
-    import("https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js"),
-    import("https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js"),
-    import("https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js")
-  ]);
-  const app = initializeApp(firebaseConfig);
-  const auth = authModule.getAuth(app);
-  const db = firestoreModule.getFirestore(app);
-  authApi = {
-    auth,
-    createUserWithEmailAndPassword: authModule.createUserWithEmailAndPassword,
-    signInWithEmailAndPassword: authModule.signInWithEmailAndPassword,
-    sendPasswordResetEmail: authModule.sendPasswordResetEmail,
-    updateProfile: authModule.updateProfile,
-    signOut: authModule.signOut,
-    onAuthStateChanged: authModule.onAuthStateChanged
-  };
-  firestoreApi = {
-    db,
-    collection: firestoreModule.collection,
-    query: firestoreModule.query,
-    where: firestoreModule.where,
-    getDocs: firestoreModule.getDocs,
-    addDoc: firestoreModule.addDoc,
-    deleteDoc: firestoreModule.deleteDoc,
-    serverTimestamp: firestoreModule.serverTimestamp
-  };
-  authApi.onAuthStateChanged(auth, user => {
-    if (user) {
-      openWorkspace(user);
-    } else {
-      currentUser = null;
-      showAuth();
-    }
-  });
-} catch (error) {
-  setMessage(message, "Could not initialise Firebase. Check the web app configuration, enabled Firestore database and internet connection.");
-  console.error(error);
-}
-
-form.addEventListener("submit", async event => {
-  event.preventDefault();
-  if (!authApi) {
-    setMessage(message, "Firebase is not ready yet. Refresh the page and try again.");
-    return;
-  }
-  submitButton.disabled = true;
-  setMessage(message, "");
-  try {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    let credential;
-    if (mode === "signup") {
-      credential = await authApi.createUserWithEmailAndPassword(authApi.auth, email, password);
-      await authApi.updateProfile(credential.user, { displayName: nameInput.value.trim() });
-    } else {
-      credential = await authApi.signInWithEmailAndPassword(authApi.auth, email, password);
-    }
-    currentUser = credential.user;
-    await openWorkspace(credential.user);
-  } catch (error) {
-    setMessage(message, readableError(error));
-    console.error("Authentication failed:", error);
-  } finally {
-    submitButton.disabled = false;
-  }
-});
-
-workspaceForm.addEventListener("submit", async event => {
-  event.preventDefault();
-  if (!currentUser || !firestoreApi) {
-    setMessage(workspaceMessage, "Your session is not ready. Please sign in again.");
-    return;
-  }
-  workspaceSubmit.disabled = true;
-  setMessage(workspaceMessage, "");
-  try {
-    const business = {
-      name: $("#business-name").value.trim(),
-      industry: $("#industry").value,
-      country: $("#business-country").value.trim(),
-      ownerId: currentUser.uid,
-      ownerEmail: currentUser.email || "",
-      createdAt: firestoreApi.serverTimestamp(),
-      updatedAt: firestoreApi.serverTimestamp(),
-      plan: "free",
-      status: "active"
-    };
-    if (!business.name || !business.industry || !business.country) {
-      throw new Error("Please complete all workspace fields.");
-    }
-    await firestoreApi.addDoc(firestoreApi.collection(firestoreApi.db, "businesses"), business);
-    currentBusinessId = (await firestoreApi.getDocs(firestoreApi.query(firestoreApi.collection(firestoreApi.db, "businesses"), firestoreApi.where("ownerId", "==", currentUser.uid)))).docs[0]?.id || null;
-    $("#dashboard-business-name").textContent = business.name;
-    $("#dashboard-business-meta").textContent = [business.industry, business.country].filter(Boolean).join(" • ");
-    setupPanel.classList.add("hidden");
-    dashboardPanel.classList.remove("hidden");
-  } catch (error) {
-    setMessage(workspaceMessage, "Could not create workspace. " + readableError(error));
-    console.error("Workspace creation failed:", error);
-  } finally {
-    workspaceSubmit.disabled = false;
-  }
-});
-
-signoutButton.addEventListener("click", async () => {
-  if (!authApi) return;
-  signoutButton.disabled = true;
-  try {
-    await authApi.signOut(authApi.auth);
-  } catch (error) {
-    setMessage($("#dashboard-message"), "Sign out failed. " + readableError(error));
-  } finally {
-    signoutButton.disabled = false;
-  }
-});
 
 updateMode();
