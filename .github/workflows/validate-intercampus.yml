@@ -21,6 +21,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install test dependencies
+        run: npm install --no-save firebase-tools @firebase/rules-unit-testing firebase
       - name: Check browser JavaScript syntax
         run: node --input-type=module --check < app.js
       - name: Set up Java for Firestore Emulator
@@ -28,5 +30,5 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Validate Firestore rules with local emulator
-        run: npx --yes firebase-tools@latest emulators:exec --only firestore --project demo-intercampus --config firebase.json "echo Firestore emulator started and rules loaded"
+      - name: Run Firestore security-rule tests
+        run: npx firebase-tools emulators:exec --only firestore --project demo-intercampus --config firebase.json "node tests/firestore.rules.test.mjs"
