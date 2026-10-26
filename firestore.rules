@@ -19,6 +19,7 @@ service cloud.firestore {
     && request.resource.data.classId is string
     && request.resource.data.durationMinutes in [30,45,60,90,120]
     && request.resource.data.requiresGps is bool
+    && (!request.resource.data.requiresGps || (request.resource.data.location is latlng && request.resource.data.radiusMeters is number && request.resource.data.radiusMeters >= 25 && request.resource.data.radiusMeters <= 500))
     && request.resource.data.createdAt is timestamp
     && request.resource.data.openedAt is number
     && request.resource.data.expiresAt is number
@@ -28,7 +29,7 @@ service cloud.firestore {
     && request.resource.data.activeCode.matches('^[0-9]{6}$')
     && request.resource.data.codeUpdatedAt==request.resource.data.openedAt
     && request.resource.data.codeVersion==1
-    && request.resource.data.keys().hasOnly(['title','classId','status','durationMinutes','requiresGps','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    && request.resource.data.keys().hasOnly(['title','classId','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
   }
   match /users/{uid}{
    allow get:if signedIn()&&request.auth.uid==uid;
@@ -54,13 +55,66 @@ service cloud.firestore {
    match /sessions/{docId}{
     allow read:if inInstitution(id);
     allow create:if validSessionCreate(id);
-    allow update:if canTeach(id)
-      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
-      && request.resource.data.status=='closed'
-      && resource.data.status=='active'
-      && resource.data.createdBy==request.auth.uid
-      && request.resource.data.closedBy==request.auth.uid
-      && request.resource.data.closedAt is number;
+    allow update:if canTeach(id) && (
+      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
+       && resource.data.status=='active' && resource.data.createdBy==request.auth.uid
+       && request.resource.data.activeCode is string && request.resource.data.activeCode.matches('^[0-9]{6}
+    allow delete:if false;
+   }
+   match /attendance/{docId}{
+    allow read:if inInstitution(id);
+    allow create:if (
+      request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+      && request.resource.data.sessionId is string && request.resource.data.studentId is string
+      && request.resource.data.studentName is string && request.resource.data.studentNumber is string
+      && request.resource.data.classId is string && request.resource.data.status=='present'
+      && request.resource.data.deviceId is string && request.resource.data.code is string
+      && request.resource.data.location is latlng && request.resource.data.accuracyMeters is number
+      && request.resource.data.accuracyMeters<=100 && request.resource.data.checkedAt==request.time
+      && docId==request.resource.data.sessionId+'_'+request.resource.data.studentId
+      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status=='active'
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt>request.time.toMillis()
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId==request.resource.data.classId
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.activeCode==request.resource.data.code
+      && request.time.toMillis()-get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt<=35000
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid==request.auth.uid
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status=='active'
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.deviceId==request.resource.data.deviceId
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId==request.resource.data.classId
+      && (!get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.requiresGps
+        || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
+          && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
+            <= get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.radiusMeters))
+      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId+'_'+request.resource.data.studentId))
+    ) || (
+      canTeach(id)
+      && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','markedBy','markedAt'])
+      && request.resource.data.status=='present' && request.resource.data.markedBy==request.auth.uid
+      && request.resource.data.markedAt==request.time
+      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status=='active'
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId==request.resource.data.classId
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId==request.resource.data.classId
+    );
+    allow update,delete:if false;
+   }
+   match /{document=**}{allow read,write:if false;}
+  }
+  match /{document=**}{allow read,write:if false;}
+ }
+})
+       && request.resource.data.codeUpdatedAt is number
+       && request.resource.data.codeUpdatedAt>=resource.data.codeUpdatedAt+25000
+       && request.resource.data.codeUpdatedAt<=request.time.toMillis()+5000
+       && request.resource.data.codeVersion==resource.data.codeVersion+1)
+      ||
+      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
+       && request.resource.data.status=='closed' && resource.data.status=='active'
+       && resource.data.createdBy==request.auth.uid && request.resource.data.closedBy==request.auth.uid
+       && request.resource.data.closedAt is number));
     allow delete:if false;
    }
    match /attendance/{docId}{
