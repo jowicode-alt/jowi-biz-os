@@ -50,7 +50,7 @@ service cloud.firestore {
    }
    match /campuses/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','city','timezone','createdAt','createdBy']);allow delete:if false;}
    match /classes/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);allow delete:if false;}
-   match /students/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','studentNumber','classId','status','createdAt','createdBy']);allow delete:if false;}
+   match /students/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','studentNumber','classId','authUid','deviceId','status','createdAt','createdBy']);allow delete:if false;}
    match /sessions/{docId}{
     allow read:if inInstitution(id);
     allow create:if validSessionCreate(id);
