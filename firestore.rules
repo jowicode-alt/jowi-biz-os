@@ -9,6 +9,7 @@ service cloud.firestore {
   function inInstitution(id) { return hasProfile() && profile().institutionId == id && exists(memberPath(id, request.auth.uid)); }
   function memberRole(id) { return get(memberPath(id, request.auth.uid)).data.role; }
   function canManage(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin']; }
+  function canAdminMembers(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
   function canTeach(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']; }
   function validSessionCreate(id) {
    return canTeach(id)
@@ -41,12 +42,12 @@ service cloud.firestore {
   match /institutions/{id} {
    allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['name','type','country','timezone','ownerId','status','createdAt','createdBy']);
    allow read: if inInstitution(id);
-   allow update: if canManage(id) && request.resource.data.ownerId == resource.data.ownerId;
+   allow update: if canAdminMembers(id) && request.resource.data.ownerId == resource.data.ownerId;
    allow delete: if false;
    match /members/{uid} {
     allow read: if inInstitution(id) && (request.auth.uid == uid || canManage(id));
     allow create: if signedIn() && request.auth.uid == uid && get(/databases/$(database)/documents/institutions/$(id)).data.ownerId == request.auth.uid && request.resource.data.uid == uid && request.resource.data.role == 'owner' && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt']);
-    allow update: if canManage(id) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','role','status']);
+    allow update: if canAdminMembers(id) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','role','status']);
     allow delete: if false;
    }
    match /campuses/{docId} {
