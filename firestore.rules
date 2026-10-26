@@ -84,6 +84,9 @@ service cloud.firestore {
      && request.resource.data.institutionId is string
      && request.resource.data.institutionCode == get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode
      && hasAcceptedInvite(request.resource.data.institutionId, uid, request.resource.data.role, request.resource.data.institutionCode)
+     && request.resource.data.createdBy == get(invitePath(request.auth.token.email, request.resource.data.institutionId)).data.createdBy
+     && request.resource.data.get('assignedCampusId','') == get(invitePath(request.auth.token.email, request.resource.data.institutionId)).data.get('assignedCampusId','')
+     && (request.resource.data.role != 'student' || (request.resource.data.classId == get(invitePath(request.auth.token.email, request.resource.data.institutionId)).data.classId && request.resource.data.studentNumber == get(invitePath(request.auth.token.email, request.resource.data.institutionId)).data.studentNumber && request.resource.data.parentName is string && request.resource.data.parentPhone is string))
      && request.resource.data.name is string && request.resource.data.contact is string
      && request.resource.data.dateOfBirth is string && request.resource.data.gender is string
      && request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000
@@ -119,7 +122,7 @@ service cloud.firestore {
    allow delete: if false;
   }
   match /invitations/{inviteId} {
-   allow get: if signedIn() && (request.auth.token.email == resource.data.email || (hasProfile() && profile().institutionId == resource.data.institutionId && canManage(resource.data.institutionId)));
+   allow get: if signedIn() && (request.auth.token.email == resource.data.email || (hasProfile() && profile().institutionId == resource.data.institutionId && canCreateMember(resource.data.institutionId, resource.data.role, resource.data.get('assignedCampusId',''))));
    allow list: if signedIn() && request.auth.token.email == resource.data.email;
    allow create: if signedIn() && hasProfile()
     && request.resource.data.createdBy == request.auth.uid
@@ -183,6 +186,8 @@ service cloud.firestore {
       && request.resource.data.email == request.auth.token.email
       && request.resource.data.status == 'active'
       && hasAcceptedInvite(id, uid, request.resource.data.role, get(/databases/$(database)/documents/institutions/$(id)).data.institutionCode)
+      && request.resource.data.createdBy == get(invitePath(request.auth.token.email, id)).data.createdBy
+      && request.resource.data.get('assignedCampusId','') == get(invitePath(request.auth.token.email, id)).data.get('assignedCampusId','')
       && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
       && request.resource.data.gender is string && request.resource.data.photoDataUrl is string
       && request.resource.data.photoDataUrl.size() <= 180000
