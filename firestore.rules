@@ -29,9 +29,9 @@ service cloud.firestore {
    match /sessions/{docId}{
     allow read:if inInstitution(id);
     allow create:if canTeach(id)&&request.resource.data.createdBy==request.auth.uid&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['title','classId','status','durationMinutes','requiresGps','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
-    allow update:if canTeach(id)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion','status','closedAt','closedBy'])&&(request.resource.data.status==resource.data.status||(resource.data.status=='active'&&request.resource.data.status=='closed'));allow delete:if false;
+    allow update:if canTeach(id)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])&&request.resource.data.status=='closed'&&resource.data.status=='active'&&resource.data.createdBy==request.auth.uid;allow delete:if false;
    }
-   match /attendance/{docId}{allow read:if inInstitution(id);allow create:if canTeach(id);allow update,delete:if false;}
+   match /attendance/{docId}{allow read:if inInstitution(id);allow create,update,delete:if false;}
    match /{document=**}{allow read,write:if false;}
   }
   match /{document=**}{allow read,write:if false;}

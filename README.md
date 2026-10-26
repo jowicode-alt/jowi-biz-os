@@ -16,3 +16,7 @@ This is a pilot foundation, not a production attendance verification system. QR/
 
 ## Deployment boundary
 This repository deploys to the existing jowi-biz-os Firebase project to replace the Jowi Biz OS website at that target. It does not deploy to the attendence-uict-bbit Firebase project and does not change the UICT Attendance repository or APK.
+
+
+## Trusted check-in foundation
+Cloud Functions provide server-side rotating session codes and an authenticated check-in callable. Check-in requires a learner record with `authUid` set to the learner's Firebase Authentication UID; a safe student enrollment/linking workflow is still required before learners can use it. Attendance writes are denied to clients in Firestore rules. Function deployment may require Firebase billing/Blaze enabled. Do not use for official attendance until learner linking, GPS enforcement, exception audit and end-to-end tests are complete.
