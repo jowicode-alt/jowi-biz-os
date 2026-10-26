@@ -41,6 +41,7 @@
           <input id="full-name" type="text" autocomplete="name" placeholder="Full name">
         </div>
         <button id="submit-btn" type="submit">Sign in</button>
+        <button id="forgot-password" class="text-button forgot-password" type="button">Forgot password?</button>
         <p id="auth-message" role="status" aria-live="polite"></p>
       </form>
       <p class="switch-copy"><span id="switch-label">New to Jowi Biz OS?</span> <button class="text-button" id="switch-mode" type="button">Create account</button></p>
@@ -67,7 +68,7 @@
           <option>Supplier / Distributor</option><option>Other</option>
         </select>
         <label for="business-country">Country</label>
-        <input id="business-country" value="Uganda" required maxlength="80">
+        <select id="business-country" required><option value="">Choose your country</option></select>
         <button type="submit" id="workspace-submit">Create workspace</button>
         <p id="workspace-message" role="status" aria-live="polite"></p>
       </form>
@@ -88,6 +89,14 @@
         <article class="module-card"><span class="module-icon">▥</span><h3>Reports</h3><p>Review business performance.</p><span class="module-status">Coming next</span></article>
       </div>
       <p id="dashboard-message" role="status" aria-live="polite"></p>
+    </section>
+    <section id="module-view" class="auth-card module-view hidden" aria-live="polite">
+      <button id="module-back" class="text-button" type="button">← Back to overview</button>
+      <div class="module-view-heading"><span class="eyebrow" id="module-eyebrow">WORKSPACE MODULE</span><h1 id="module-title">Module</h1><p id="module-description" class="muted"></p></div>
+      <form id="record-form" class="record-form"></form>
+      <p id="record-message" role="status" aria-live="polite"></p>
+      <div class="records-heading"><h2 id="records-title">Records</h2><span id="records-count" class="workspace-pill">0 records</span></div>
+      <div id="records-list" class="records-list"></div>
     </section>
   </main>
   <footer>Jowi Biz OS <span>•</span> Built for businesses of every size</footer>
