@@ -431,28 +431,118 @@ const industryModuleKeys = {
 };
 const moduleIcons = {inventory:"▦",suppliers:"⇄",appointments:"◷",services:"✦",students:"♧",classes:"▤",attendance:"✓",members:"♙",events:"✧",donations:"♡",menu:"☷",orders:"▤",projects:"▧",materials:"▦",medicines:"✚",serviceJobs:"⚒",cleaningSchedules:"◷",properties:"⌂",viewings:"⌖",printJobs:"▧",quotes:"▤",bookings:"◷",fleet:"▰",trips:"➜",purchaseOrders:"⇄",deliveryOrders:"➜",studentAdmissions:"🎓",academicResults:"📊",timetables:"🗓",feeLedger:"💳",staffAttendance:"🕘",libraryLoans:"📚",churchMembers:"⛪",givingLedger:"♡",outreach:"🤝",tableMap:"🍽",recipeCosting:"🥘",foodSafety:"🧼",roomBoard:"🛏",guestRegister:"🛎",tourItineraries:"🗺",fleetMaintenance:"🚐",siteDailyLogs:"🏗",estimates:"🧾",safetyChecks:"⚠",cleaningChecklist:"🧹",chemicalRegister:"🧴",clinicalVisits:"🩺",clinicalVitals:"🩺",prescriptions:"💊",dispensing:"💊",workOrders:"🧰",vehicleJobs:"🔧",printProduction:"🖨",creativePipeline:"🎨",eventRunsheet:"🎪",rentalLedger:"🏠",propertyMaintenance:"🔨",reservations:"📅",patientQueue:"🏥",orderFulfilment:"📦",stockLots:"🏷"};
 function renderIndustryModules(industry) {
-  const grid = $("#module-grid");
-  if (!grid) return;
-  grid.replaceChildren();
+  const nav = $("#sidebar-modules");
+  if (!nav) return;
+  nav.replaceChildren();
   const keys = industryModuleKeys[industry] || industryModuleKeys["Other specialist business"];
-  $("#industry-modules-intro").textContent = "Specialist tools for " + (industry || "your business") + ". This workspace only shows the modules designed for your selected industry.";
+  $("#industry-modules-intro").textContent = "A live snapshot of " + (industry || "your business") + " operations. Use the sidebar to open each specialist module.";
+  $("#workspace-sidebar").classList.remove("hidden");
+  $("#metric-modules").textContent = String(keys.filter(key => moduleDefinitions[key]).length);
   keys.forEach(key => {
     const def = moduleDefinitions[key];
     if (!def) return;
-    const card = document.createElement("article");
-    card.className = "module-card";
-    card.dataset.module = key;
-    card.tabIndex = 0;
-    card.setAttribute("role","button");
-    const icon = document.createElement("span"); icon.className="module-icon"; icon.textContent=moduleIcons[key] || "•";
-    const heading = document.createElement("h3"); heading.textContent=def.title;
-    const description = document.createElement("p"); description.textContent=def.description;
-    const action = document.createElement("span"); action.className="module-status"; action.textContent="Open module →";
-    card.append(icon,heading,description,action);
-    card.addEventListener("click",()=>openModule(key));
-    card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openModule(key);}});
-    grid.append(card);
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "sidebar-module-link";
+    link.dataset.module = key;
+    const icon = document.createElement("span");
+    icon.className = "sidebar-module-icon";
+    icon.textContent = moduleIcons[key] || "•";
+    const label = document.createElement("span");
+    label.textContent = def.title;
+    link.append(icon, label);
+    link.addEventListener("click", () => openModule(key));
+    nav.append(link);
   });
+  loadOverviewMetrics(keys);
+}
+async function loadOverviewMetrics(keys) {
+  const output = $("#metric-records");
+  if (!output || !currentBusinessId || !firestoreApi) return;
+  output.textContent = "…";
+  try {
+    const collections = [...new Set(keys.map(key => moduleDefinitions[key]?.collection).filter(Boolean))];
+    const snapshots = await Promise.all(collections.map(name =>
+      firestoreApi.getDocs(firestoreApi.collection(firestoreApi.db, "businesses", currentBusinessId, name))
+    ));
+    output.textContent = String(snapshots.reduce((sum, snapshot) => sum + snapshot.size, 0));
+  } catch (error) {
+    output.textContent = "—";
+    console.warn("Overview metrics could not be refreshed:", error);
+  }
+}
+const moduleWorkflowGuides = {
+  inventory: {who:"Store owner, stock controller, cashier",when:"Whenever goods are received, sold, moved, counted, damaged or returned.",steps:["Create each item with a unique code, unit, cost and reorder threshold.","Record receipts and stock adjustments against a reason or source document.","Check low-stock items before raising a purchase order.","Count physical stock regularly and investigate differences."],controls:"Use consistent units, record adjustments with reasons, and restrict write-offs."},
+  stockLots: {who:"Stock controller, pharmacist or store manager",when:"When a supplier delivers a batch and whenever stock is issued, counted or expires.",steps:["Record batch or lot number, received quantity and expiry date where applicable.","Keep batches traceable to the supplier and purchase receipt.","Issue the earliest-expiring suitable lot first where policy requires it.","Quarantine expired, recalled or damaged stock and document the disposition."],controls:"Never silently overwrite batch history; expiry and recall handling must be auditable."},
+  suppliers: {who:"Purchasing officer, store manager, accounts",when:"Before ordering and when supplier details, prices or delivery performance change.",steps:["Register verified supplier contacts and the products they provide.","Compare quotes, delivery times and payment terms before ordering.","Link receipts and shortages to the supplier and purchase order.","Review quality, delivery reliability and outstanding balances."],controls:"Verify supplier identity and keep purchase approvals separate from receipt confirmation where possible."},
+  purchaseOrders: {who:"Buyer, approving manager, receiving storekeeper",when:"After a reorder need is confirmed and before goods are expected.",steps:["Select supplier and item quantities with agreed prices.","Obtain approval before sending the order when required.","Record partial deliveries and shortages against the original order.","Close the order only after the received quantities are checked."],controls:"Avoid duplicate orders; retain references and receiving evidence."},
+  deliveryOrders: {who:"Order desk, packer, driver, recipient",when:"After an order is confirmed and before dispatch, delivery or return.",steps:["Confirm the order and delivery address or service area.","Pick and check the items, then record who packed and dispatched them.","Update delivery status and capture recipient confirmation.","Record failed delivery, damage or return and decide the next action."],controls:"Do not mark delivered without confirmation; protect recipient contact details."},
+  orders: {who:"Waiter, cashier, kitchen or fulfilment team",when:"For each customer order, then at every preparation and handover stage.",steps:["Create a unique ticket and capture items, modifiers and table or customer.","Route the ticket to the correct preparation station.","Move it through new, preparing, ready and served/collected states.","Reconcile payment, cancellations and any returned items."],controls:"Use a unique ticket number and require a reason or permission for voids."},
+  menu: {who:"Restaurant manager, chef, cashier",when:"When dishes, prices, availability, allergens or portion sizes change.",steps:["Create each menu item with category and selling price.","Mark temporarily unavailable items before taking orders.","Maintain ingredient and allergen information alongside recipes where supported.","Review price and availability before each service period."],controls:"Do not imply allergen safety unless ingredients and preparation controls are verified."},
+  tableMap: {who:"Host, waiter, shift supervisor",when:"At opening, seating, transfers, bill splitting and table turnover.",steps:["Set up table identifiers and capacity.","Assign a party to a free table and link their order.","Track occupied, awaiting bill and cleaning states.","Release a table only after payment and turnover are confirmed."],controls:"Avoid double-seating; preserve order-to-table links during transfers."},
+  recipeCosting: {who:"Chef, kitchen manager, purchaser",when:"When a recipe or portion changes, ingredient costs move, or menu prices are reviewed.",steps:["Define ingredients and quantities for a standard portion or batch.","Use current ingredient unit costs to calculate cost per serving.","Compare cost with selling price and target margin.","Update stock consumption and recipe version when approved."],controls:"Cost estimates depend on accurate units, yield and waste assumptions."},
+  foodSafety: {who:"Food safety lead, kitchen staff, shift manager",when:"At opening, receiving, storage checks, preparation and closing.",steps:["Record required temperature, cleaning and hygiene checks with time and responsible person.","Log deviations, corrective action and re-check result.","Track supplier, storage and date labels where relevant.","Escalate unresolved critical checks before affected food is served."],controls:"This log supports—not replaces—local food-safety procedures and inspections."},
+  bookings: {who:"Reservations agent, receptionist, service coordinator",when:"On enquiry, confirmation, arrival, change, cancellation and completion.",steps:["Capture customer, date range, party or unit count and requested service.","Check capacity and conflicts before confirming.","Record deposits, balance due and any change or cancellation reason.","Close the booking after the service and reconcile outstanding payment."],controls:"Avoid double booking; clearly distinguish requested from confirmed reservations."},
+  reservations: {who:"Reservation desk, host or front office",when:"For advance bookings, walk-ins, changes and cancellations.",steps:["Check availability for the requested time, room, table or service.","Capture guest details, party size, special requests and confirmation status.","Track arrival, seating/check-in and no-show or cancellation outcome.","Release the capacity only when the reservation is cancelled or completed."],controls:"Confirm availability before promising a reservation; limit access to guest details."},
+  guestRegister: {who:"Reception, front desk, authorised property manager",when:"At guest arrival, during a stay and at departure.",steps:["Match the guest to a confirmed booking or create an authorised walk-in record.","Record check-in time, allocated room and required registration details.","Coordinate special requests and authorised room changes.","Complete checkout and hand over room status to housekeeping."],controls:"Collect only necessary guest information and restrict access to registration data."},
+  roomBoard: {who:"Reception, housekeeping, maintenance",when:"At each check-in/out, cleaning completion, inspection and room fault.",steps:["Maintain a room list and current status: clean, occupied, dirty, inspected or out of order.","Create cleaning work when guests depart or rooms need service.","Record inspection and faults before returning rooms to sale.","Coordinate front desk availability with housekeeping status."],controls:"Never assign an out-of-order room; status changes need a responsible user."},
+  students: {who:"Admissions office, class teacher, school administrator",when:"At enrolment, class promotion, transfer, guardian update and exit.",steps:["Create a unique learner ID and verify biodata and guardian contacts.","Assign the learner to the correct academic year, class and stream.","Update status only with an authorised reason and preserve history.","Use the same learner identifier in attendance, fees and assessment records."],controls:"Limit access to minors' information and verify guardian contact changes."},
+  studentAdmissions: {who:"Admissions officer, head teacher or registrar",when:"From application receipt through review, offer and enrolment.",steps:["Record applicant, programme/class applied for, date and required documents.","Review completeness and mark missing items for follow-up.","Record an authorised decision and communicate the next step.","Create the active student record after admission is confirmed."],controls:"Avoid duplicate learner records; record decision dates and responsible staff."},
+  attendance: {who:"Class teacher, trainer or authorised register taker",when:"At the start of each class, session or scheduled activity.",steps:["Choose the class or group and date before taking the register.","Mark each person present, absent, late or excused using the institution's policy.","Review missing entries and correct errors with an explanation.","Use attendance summaries for follow-up, not as a substitute for safeguarding procedures."],controls:"Prevent duplicate registers for the same group and session; restrict edits after approval."},
+  academicResults: {who:"Subject teacher, examiner, head of department, registrar",when:"After an assessment and before results are approved or published.",steps:["Choose learner, subject, assessment period and maximum score.","Enter marks and validate that scores are within the permitted range.","Review missing marks and moderation or approval requirements.","Publish or export results only after authorised review."],controls:"Lock or audit approved results and restrict access by class/subject role."},
+  timetables: {who:"Academic coordinator, administrator, teachers",when:"At term setup and whenever a class, room or teacher changes.",steps:["Define classes, subjects, instructors, rooms and periods.","Check for teacher, class and room clashes before publishing.","Approve the timetable and communicate changes to affected people.","Keep a dated version so staff know which schedule is current."],controls:"The current starter form captures timetable entries; automated clash detection is a next-stage enhancement."},
+  feeLedger: {who:"Bursar, cashier, school administrator",when:"At fee assessment, each payment, credit/waiver and statement request.",steps:["Define fee type and amount due for the learner and term.","Record each payment with date, method and reference; do not replace prior payments.","Calculate balance from charges less valid payments and approved adjustments.","Issue a receipt and reconcile collections with cash/mobile-money/bank records."],controls:"A ledger form alone is not a full accounting system; require reconciliation and immutable receipt references."},
+  libraryLoans: {who:"Librarian, student or staff borrower",when:"At cataloguing, issue, renewal, return and overdue follow-up.",steps:["Register each book or resource with a unique catalogue identifier.","Issue it to a borrower with checkout date and due date.","Record returns, renewals, loss or damage and any policy-based fine.","Review overdue items and stock availability."],controls:"Track copies separately from titles and preserve a history of loans."},
+  clinicalVisits: {who:"Authorised clinician and reception staff within their roles",when:"For a scheduled or walk-in encounter and follow-up visit.",steps:["Verify patient identity and appointment or triage context.","Record only necessary visit information under the clinician's workflow.","Document assessment, plan and follow-up in the approved clinical record.","Close the encounter only after required review and documentation."],controls:"Prototype only: do not use for real patient records until access control, audit, backups and applicable Ugandan health-data requirements are implemented and reviewed."},
+  clinicalVitals: {who:"Trained clinical staff",when:"During triage and at clinically indicated reassessment.",steps:["Verify patient identity and encounter before recording measurements.","Record value, unit, measurement time and responsible staff member.","Flag out-of-range readings for clinician review according to local protocol.","Keep repeat measurements distinct rather than overwriting earlier readings."],controls:"Prototype only; no automated diagnosis or clinical decision support is implied."},
+  patientQueue: {who:"Reception, triage nurse, clinician",when:"When a patient arrives, is triaged, called, seen or referred.",steps:["Register arrival and appointment/walk-in type.","Use the clinic's triage protocol to prioritise urgent cases.","Update waiting, called, in consultation and completed states.","Review waiting time and unresolved patients throughout the shift."],controls:"Queue visibility should reveal minimal patient data in public areas."},
+  prescriptions: {who:"Authorised prescriber and dispensing professional",when:"After a clinical decision and before dispensing or renewal.",steps:["Verify patient and encounter and enter the legally required prescription details.","Check medicine, dose, route, frequency, duration and allergy/interaction information using approved systems.","Require the appropriate prescriber authorisation and document changes.","Link dispensing and counselling to the prescription where permitted."],controls:"Prototype only—not safe for live prescribing until clinical validation, permissions, audit and regulatory review are complete."},
+  dispensing: {who:"Licensed/authorised pharmacy professional",when:"When filling a valid prescription or making an authorised sale.",steps:["Validate prescription and patient/product details under pharmacy policy.","Select the correct product and batch, checking expiry and quantity.","Record quantity supplied, dispenser, date and counselling/collection status.","Deduct stock from the exact batch and document returns or corrections."],controls:"Prototype only; requires pharmacy-grade validation, access controls and auditability before live use."},
+  siteDailyLogs: {who:"Site supervisor, foreperson, project manager",when:"At the end of each site day and after significant incidents or delays.",steps:["Record date, site, crew, work completed and quantities achieved.","Capture weather, equipment, deliveries, delays and instructions affecting progress.","Log incidents, inspections and corrective actions separately.","Review and approve the daily report for the project record."],controls:"Keep time-stamped records and attach supporting evidence in a future enhancement."},
+  safetyChecks: {who:"Site safety lead, supervisor, authorised workers",when:"Before work starts, after a change, and during scheduled inspections.",steps:["Select the activity/equipment and use the relevant approved checklist.","Record pass/fail/NA, finding, risk and responsible person.","Assign corrective action and due time for failed checks.","Verify closure before the affected work resumes where required."],controls:"Use site-specific approved safety procedures; the starter module is not a certified safety system."},
+  estimates: {who:"Estimator, service manager, approving customer",when:"Before work is authorised and whenever scope or cost changes.",steps:["Capture scope, quantities, labour, materials, exclusions and validity period.","Calculate the estimate from documented rates and assumptions.","Review internally, then issue the approved version to the customer.","Track acceptance or rejection and convert approved scope into a job or project."],controls:"Keep revisions and customer approval evidence; this starter module records estimates but does not generate a formal quote PDF."},
+  workOrders: {who:"Dispatcher, technician, customer contact",when:"From service request through diagnosis, work, testing and sign-off.",steps:["Capture fault/request, location, priority and customer contact.","Assign a technician, schedule the visit and record parts required.","Record diagnosis, work performed, parts used and test outcome.","Get customer sign-off and close or schedule a follow-up."],controls:"Keep status history and separate quoted work from approved work."},
+  vehicleJobs: {who:"Service advisor, mechanic, parts store, vehicle owner",when:"At vehicle intake, diagnosis, repair approval, testing and handover.",steps:["Record vehicle identity, odometer, reported fault and intake condition.","Document diagnosis and estimate before carrying out chargeable work.","Track parts, labour, technician, repair progress and quality checks.","Record road/test result, customer approval and collection."],controls:"Maintain vehicle/job history and require approval for additional work."},
+  appointments: {who:"Receptionist, service provider, customer",when:"At booking, confirmation, arrival, reschedule, completion and cancellation.",steps:["Choose a service, provider, date and available slot.","Confirm with the customer and record special requirements.","Mark arrival and completion or capture cancellation/no-show.","Review daily schedule and follow up on unconfirmed appointments."],controls:"The current form stores appointment entries; live calendar conflict checking and reminders are future integrations."},
+  services: {who:"Owner, service manager, assigned staff",when:"When a service is introduced, repriced or changes duration/requirements.",steps:["Define service name, standard duration, price and required skill/equipment.","Assign eligible staff and make the service bookable only when available.","Review service profitability and customer feedback periodically.","Update the catalogue without altering completed historical jobs."],controls:"Store prices and duration consistently; future bookings should snapshot the price at booking time."},
+  cleaningSchedules: {who:"Operations manager, supervisor, cleaning team",when:"When recurring work is planned and at each scheduled visit.",steps:["Register client/site, scope, frequency, scheduled date and assigned team.","Issue the task list for the site and confirm access/materials.","Record completion, exceptions and supervisor inspection.","Reschedule missed work and capture customer sign-off where required."],controls:"Track chemicals and safety requirements separately; never treat a schedule alone as proof of quality."},
+  cleaningChecklist: {who:"Cleaning supervisor and assigned cleaner",when:"Before, during and after a cleaning job according to the site checklist.",steps:["Load the checklist appropriate to room/site and service type.","Mark tasks complete and note any inaccessible or failed item.","Record supervisor inspection and corrective rework.","Close the job only after required checks are complete."],controls:"Use site-specific checklists and avoid marking tasks complete in advance."},
+  chemicalRegister: {who:"Cleaning manager, chemical storekeeper, safety lead",when:"When a chemical is received, issued, diluted, used or disposed of.",steps:["Record product identity, supplier and safety documentation location.","Track quantity, storage location, issue and expiry where applicable.","Record required PPE, dilution and handling instructions from the product label/SDS.","Log spills, incidents and safe disposal according to policy."],controls:"Never substitute this register for current safety data sheets or local hazardous-substance requirements."},
+  properties: {who:"Real estate agent, property manager, owner",when:"When listing, updating availability, reserving, renting or selling a property.",steps:["Create a unique property reference with location, type and key features.","Record asking price/rent, availability and authorised listing status.","Link viewings, offers, tenancy or sale paperwork to the property reference.","Update status promptly when reserved, rented, sold or withdrawn."],controls:"Restrict access to owner/tenant documents and preserve listing change history."},
+  viewings: {who:"Agent, prospective buyer/tenant, property contact",when:"When a prospect requests a viewing or an inspection is due.",steps:["Link the viewing to a property and prospect.","Agree a date/time and assign the responsible agent.","Record attendance, feedback and next action after the visit.","Reschedule or close cancelled viewings and follow up on active prospects."],controls:"Confirm property access and avoid exposing tenant details unnecessarily."},
+  rentalLedger: {who:"Property manager, landlord, accounts officer, tenant (limited view)",when:"At rent due dates, payment, deposit adjustment, arrears review and move-out.",steps:["Record tenancy, rent amount, billing period and due date.","Record each receipt with method, reference and period paid.","Calculate arrears and credits from dated ledger entries.","Reconcile deposits, adjustments and final statement at move-out."],controls:"Keep receipts and adjustments traceable; seek local review for legal tenancy and deposit rules."},
+  propertyMaintenance: {who:"Tenant/contact, property manager, contractor",when:"When a fault is reported, work is assigned, inspected and closed.",steps:["Record property, reported issue, priority and access arrangements.","Assign contractor and capture estimate/approval where needed.","Track work, costs, evidence and tenant/owner updates.","Verify repair and close the ticket or schedule further work."],controls:"Escalate urgent safety/security faults and preserve approvals."},
+  printProduction: {who:"Sales/prepress, designer, production operator, quality checker",when:"From customer brief and artwork approval through production and delivery.",steps:["Capture job specification, dimensions, stock/material, quantity, finishing and deadline.","Confirm artwork proof and customer approval before production.","Track prepress, printing, finishing, quality inspection and waste/rework.","Record packed quantity, delivery and final balance."],controls:"Use versioned job tickets and verify final artwork, quantity and finishing before release."},
+  creativePipeline: {who:"Account manager, strategist, designer, reviewer, client",when:"At enquiry, briefing, proposal, production review and client approval.",steps:["Capture client, objective, deliverables, budget, deadline and decision-maker.","Move work through brief, proposal, production, internal review and client review.","Track feedback rounds, approvals, scope changes and assets.","Record final delivery and lessons/renewal opportunities."],controls:"Version deliverables and distinguish client-approved work from drafts."},
+  eventRunsheet: {who:"Event planner, venue lead, suppliers, stage manager",when:"During planning and on event day as each milestone is prepared or completed.",steps:["Record event timings, venue, owners, suppliers and dependencies.","Create a timed run sheet for setup, arrivals, programme, catering and breakdown.","Assign a named owner and contingency for critical milestones.","Update live status and record incidents or post-event follow-ups."],controls:"Share role-appropriate versions and keep one current master schedule."},
+  tourItineraries: {who:"Tour operator, guide/driver, suppliers, traveller",when:"At trip design, booking confirmation and before/during departure.",steps:["Define route, stops, timings, inclusions, exclusions and traveller requirements.","Check transport capacity, supplier availability and realistic transfer times.","Attach booking references and emergency contacts to the authorised itinerary.","Record changes, attendance and trip completion feedback."],controls:"Confirm suppliers and travel requirements; an itinerary is not proof that a booking is confirmed."},
+  fleetMaintenance: {who:"Fleet manager, driver/operator, mechanic",when:"At pre-trip checks, scheduled service, fault report and return to service.",steps:["Register vehicle/asset identity, odometer and service intervals.","Log inspections, defects, parts, maintenance work and cost.","Schedule next service based on time or usage thresholds.","Mark unavailable assets off duty until safety checks and repairs are complete."],controls:"Use verified maintenance intervals and preserve inspection history."},
+  givingLedger: {who:"Treasurer, authorised finance officer, donor (limited access)",when:"Whenever a contribution is received, allocated, refunded or reconciled.",steps:["Record amount, date, fund/purpose and payment method/reference.","Issue a receipt and reconcile against cash, bank or mobile-money statements.","Allocate restricted contributions only to their stated purpose.","Produce period summaries for authorised governance review."],controls:"Restrict donor details, preserve receipts and require dual approval for refunds/adjustments."},
+  churchMembers: {who:"Membership secretary, ministry leader, authorised administrator",when:"At registration, group assignment, contact change and membership status change.",steps:["Record member details and consented contact preferences.","Assign ministry/group and appropriate membership status.","Update changes while keeping an authorised history of important status decisions.","Use group lists only for the purposes the organisation has approved."],controls:"Limit personal data and avoid sharing sensitive pastoral notes broadly."},
+  orderFulfilment: {who:"Order desk, warehouse picker, packer, dispatch lead",when:"After an order is accepted through packing, dispatch and delivery confirmation.",steps:["Validate order lines, quantities, payment/credit status and delivery promise.","Reserve stock and generate picking/packing work.","Check packed goods against the order and record dispatch handover.","Reconcile short picks, substitutions, returns and proof of delivery."],controls:"Do not dispatch unapproved credit orders; maintain traceability from order to delivery."}
+};
+function renderWorkflowGuide(key) {
+  const target = $("#module-workflow-guide");
+  if (!target) return;
+  const guide = moduleWorkflowGuides[key] || {
+    who:"The staff member responsible for this process and the approving manager",
+    when:"Whenever a new record is created, a status changes, or a review is due.",
+    steps:["Capture complete and accurate information before saving.","Assign a responsible person and a clear next action.","Update the record when work progresses and keep supporting references.","Review open items regularly and close them only when the outcome is confirmed."],
+    controls:"Use unique references, least-privilege access and a traceable correction process."
+  };
+  target.replaceChildren();
+  const title = document.createElement("h2"); title.textContent = "How this module works";
+  const meta = document.createElement("div"); meta.className = "workflow-meta";
+  [["Who uses it",guide.who],["When to use it",guide.when],["Key controls",guide.controls]].forEach(([label,value])=>{
+    const item=document.createElement("div"); item.className="workflow-meta-item";
+    const strong=document.createElement("strong"); strong.textContent=label;
+    const p=document.createElement("p"); p.textContent=value;
+    item.append(strong,p); meta.append(item);
+  });
+  const stepsTitle=document.createElement("h3"); stepsTitle.textContent="Recommended workflow";
+  const list=document.createElement("ol"); list.className="workflow-steps";
+  guide.steps.forEach(step=>{const li=document.createElement("li");li.textContent=step;list.append(li);});
+  target.append(title,meta,stepsTitle,list);
 }
 function makeField(field) {
   const [name,label,type,required,options] = field;
@@ -483,6 +573,9 @@ async function openModule(key) {
   moduleView.classList.remove("hidden");
   $("#module-title").textContent = definition.title;
   $("#module-description").textContent = definition.description;
+  renderWorkflowGuide(key);
+  document.querySelectorAll(".sidebar-module-link").forEach(link => link.classList.toggle("active", link.dataset.module === key));
+  $("#sidebar-overview").classList.remove("active");
   $("#records-title").textContent = key === "reports" ? "Summary" : "Saved records";
   recordForm.replaceChildren();
   $("#record-message").textContent = "";
@@ -579,5 +672,20 @@ recordForm.addEventListener("submit", async event => {
   finally { button.disabled=false; }
 });
 
-$("#module-back").addEventListener("click",()=>{moduleView.classList.add("hidden");dashboardPanel.classList.remove("hidden");activeModule=null;});
+function showClientOverview() {
+  moduleView.classList.add("hidden");
+  dashboardPanel.classList.remove("hidden");
+  activeModule = null;
+  $("#sidebar-overview").classList.add("active");
+  document.querySelectorAll(".sidebar-module-link").forEach(link => link.classList.remove("active"));
+}
+$("#module-back").addEventListener("click", showClientOverview);
+$("#sidebar-overview").addEventListener("click", showClientOverview);
+$("#sidebar-open").addEventListener("click", () => $("#workspace-sidebar").classList.remove("hidden"));
+$("#sidebar-close").addEventListener("click", () => $("#workspace-sidebar").classList.add("hidden"));
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && window.matchMedia("(max-width: 680px)").matches) {
+    $("#workspace-sidebar").classList.add("hidden");
+  }
+});
 updateMode();
