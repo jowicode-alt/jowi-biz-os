@@ -29,4 +29,4 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Validate Firestore rules with local emulator
-        run: npx --yes firebase-tools@latest emulators:exec --only firestore --project demo-intercampus --config firebase.json "echo Firestore emulator started; rules loaded"
+        run: npx --yes firebase-tools@latest emulators:exec --only firestore --project demo-intercampus --config firebase.json "echo Firestore emulator started and rules loaded"
