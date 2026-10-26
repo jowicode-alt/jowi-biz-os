@@ -12,7 +12,7 @@ service cloud.firestore {
   function canAdminMembers(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
   function assignedCampus(id) { return get(memberPath(id, request.auth.uid)).data.assignedCampusId; }
   function canCreateMember(id, targetRole, campusId) {
-   return inInstitution(id) && ((memberRole(id) in ['owner','institution_admin'] && targetRole in ['institution_admin','campus_admin','lecturer','student']) || (memberRole(id) == 'campus_admin' && targetRole in ['lecturer','student'] && assignedCampus(id) == campusId) || (memberRole(id) == 'lecturer' && targetRole == 'student' && assignedCampus(id) == campusId));
+   return inInstitution(id) && ((memberRole(id) == 'owner' && targetRole in ['institution_admin','campus_admin','lecturer','student']) || (memberRole(id) == 'institution_admin' && targetRole in ['campus_admin','lecturer','student']) || (memberRole(id) == 'campus_admin' && targetRole in ['lecturer','student'] && assignedCampus(id) == campusId) || (memberRole(id) == 'lecturer' && targetRole == 'student' && assignedCampus(id) == campusId));
   }
   function assignedCampus(id) { return get(memberPath(id, request.auth.uid)).data.assignedCampusId; }
   function canManageCampus(id, campusId) {
