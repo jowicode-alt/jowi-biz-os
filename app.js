@@ -142,6 +142,7 @@ try {
   firestoreApi = {
     db,
     collection: firestoreModule.collection,
+    doc: firestoreModule.doc,
     query: firestoreModule.query,
     where: firestoreModule.where,
     getDocs: firestoreModule.getDocs,
@@ -376,7 +377,7 @@ function createRecordCard(doc, key) {
   remove.addEventListener("click", async () => {
     if (!confirm("Delete this record? This cannot be undone.")) return;
     try {
-      await firestoreApi.deleteDoc(firestoreApi.collection(firestoreApi.db,"businesses",currentBusinessId,moduleDefinitions[key].collection,doc.id));
+      await firestoreApi.deleteDoc(firestoreApi.doc(firestoreApi.db,"businesses",currentBusinessId,moduleDefinitions[key].collection,doc.id));
       await loadRecords();
     } catch(error) { setMessage($("#record-message"),"Could not delete record. "+readableError(error)); }
   });
