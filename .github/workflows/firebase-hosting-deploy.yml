@@ -10,20 +10,37 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
+      - name: Install Firestore rules test dependencies
+        run: npm install --no-save firebase-tools @firebase/rules-unit-testing firebase
       - name: Validate browser JavaScript syntax
         run: node --input-type=module --check < app.js
+      - name: Set up Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run Firestore security-rule tests
+        run: npx firebase-tools emulators:exec --only firestore --project demo-intercampus --config firebase.json "node tests/firestore.rules.test.mjs"
 
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Deploy Firestore security rules
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
@@ -31,7 +48,6 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json" npx --yes firebase-tools@latest deploy --only firestore:rules --project jowi-biz-os --non-interactive
           rm -f "$RUNNER_TEMP/firebase-service-account.json"
-
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
