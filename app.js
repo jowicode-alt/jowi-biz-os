@@ -379,62 +379,18 @@ const moduleDefinitions = {
   stockLots: {title:"Batch & expiry stock control",description:"Track batch-level stock, expiry dates and stock adjustments.",collection:"stockLots",fields:[["product","Product","text",true],["batch","Batch / lot","text",true],["receivedDate","Received date","date",true],["expiryDate","Expiry date","date",false],["quantity","Quantity","number",true],["storageLocation","Storage location","text",false]]}
 };
 
+const schoolModuleKeys = ["studentAdmissions","students","classes","attendance","academicResults","timetables","feeLedger","staffAttendance","libraryLoans"];
 const industryModuleKeys = {
-  "General retail shop": ["inventory","orders","stockLots","suppliers"],
-  "Supermarket / Mini-mart": ["inventory","orders","stockLots","suppliers","purchaseOrders"],
-  "Clothing / Fashion shop": ["inventory","orders","stockLots","suppliers"],
-  "Furniture / Home goods shop": ["inventory","orders","suppliers","deliveryOrders"],
-  "Electronics / Phone shop": ["inventory","orders","stockLots","suppliers"],
-  "Hardware / Building supplies shop": ["inventory","orders","stockLots","suppliers","purchaseOrders"],
-  "Salon": ["appointments","services","staff","inventory"],
-  "Barbershop": ["appointments","services","staff"],
-  "Spa / Wellness centre": ["appointments","services","staff","inventory"],
-  "Nursery / Primary school": ["studentAdmissions","students","classes","attendance","academicResults","timetables","feeLedger","staffAttendance","libraryLoans"],
-  "Secondary school": ["studentAdmissions","students","classes","attendance","academicResults","timetables","feeLedger","staffAttendance","libraryLoans"],
-  "College / Training institute": ["studentAdmissions","students","classes","attendance","academicResults","timetables","feeLedger","staffAttendance"],
-  "Church / Faith organisation": ["churchMembers","events","givingLedger","attendance","outreach"],
-  "NGO / Community organisation": ["members","outreach","events","donations","projects"],
-  "Restaurant": ["menu","orders","tableMap","recipeCosting","foodSafety","reservations","inventory"],
-  "Catering business": ["menu","orders","recipeCosting","foodSafety","bookings","inventory"],
-  "Hotel / Guesthouse": ["bookings","guestRegister","roomBoard","menu","orders","inventory","fleetMaintenance"],
-  "Tour operator / Travel agency": ["tourItineraries","bookings","reservations","fleetMaintenance","customers"],
-  "Transport / Taxi / Shuttle": ["bookings","fleetMaintenance","trips","deliveryOrders"],
-  "Construction contractor": ["projects","estimates","siteDailyLogs","materials","safetyChecks","purchaseOrders"],
-  "Cleaning company": ["cleaningSchedules","cleaningChecklist","chemicalRegister","staffAttendance","estimates"],
-  "Clinic / Medical practice": ["clinicalVisits","patientQueue","clinicalVitals","prescriptions","staffAttendance"],
-  "Pharmacy": ["medicines","dispensing","prescriptions","stockLots","suppliers","purchaseOrders"],
-  "Real estate agency": ["properties","viewings","quotes","customers","events"],
-  "Property / Rental management": ["properties","rentalLedger","viewings","propertyMaintenance","estimates"],
-  "Printing shop": ["printProduction","quotes","inventory","purchaseOrders","deliveryOrders"],
-  "Branding / Advertising agency": ["creativePipeline","quotes","projects","events"],
-  "Web / Creative agency": ["creativePipeline","quotes","projects","events"],
-  "Event planner / Decorator": ["eventRunsheet","bookings","inventory","quotes","suppliers"],
-  "Mechanic / Garage": ["vehicleJobs","workOrders","inventory","stockLots","suppliers","estimates"],
-  "Plumbing / Electrical services": ["workOrders","estimates","materials","fleetMaintenance","safetyChecks"],
-  "Repair / Field technician": ["workOrders","estimates","inventory","stockLots","fleetMaintenance"],
-  "Wholesale supplier / Distributor": ["inventory","stockLots","suppliers","purchaseOrders","orderFulfilment","deliveryOrders"],
-  "Other specialist business": ["workOrders","estimates","bookings"],
-  "Retail / Shop": ["inventory","orders","stockLots","suppliers"],
-  "Salon / Barber / Spa": ["appointments","services","staff","inventory"],
-  "School / Training": ["studentAdmissions","students","classes","attendance","academicResults","timetables","feeLedger"],
-  "Church / Community organisation": ["churchMembers","events","givingLedger","attendance","outreach"],
-  "Restaurant / Catering": ["menu","orders","tableMap","recipeCosting","foodSafety","reservations","inventory"],
-  "Construction / Contractor": ["projects","estimates","siteDailyLogs","materials","safetyChecks","purchaseOrders"],
-  "Clinic / Pharmacy": ["clinicalVisits","patientQueue","clinicalVitals","prescriptions"],
-  "Cleaning services": ["cleaningSchedules","cleaningChecklist","chemicalRegister","staffAttendance","estimates"],
-  "Real estate": ["properties","viewings","rentalLedger","propertyMaintenance"],
-  "Agency / Printing / Branding": ["printProduction","creativePipeline","quotes","projects"],
-  "Transport / Tours / Guesthouse": ["bookings","guestRegister","roomBoard","tourItineraries","fleetMaintenance"],
-  "Repairs / Technical services": ["workOrders","estimates","inventory","stockLots","fleetMaintenance"],
-  "Supplier / Distributor": ["inventory","stockLots","suppliers","purchaseOrders","orderFulfilment","deliveryOrders"],
-  "Other": ["workOrders","estimates","bookings"]
+  "Nursery / Primary school": schoolModuleKeys,
+  "Secondary school": schoolModuleKeys,
+  "College / Training institute": schoolModuleKeys
 };
 const moduleIcons = {inventory:"▦",suppliers:"⇄",appointments:"◷",services:"✦",students:"♧",classes:"▤",attendance:"✓",members:"♙",events:"✧",donations:"♡",menu:"☷",orders:"▤",projects:"▧",materials:"▦",medicines:"✚",serviceJobs:"⚒",cleaningSchedules:"◷",properties:"⌂",viewings:"⌖",printJobs:"▧",quotes:"▤",bookings:"◷",fleet:"▰",trips:"➜",purchaseOrders:"⇄",deliveryOrders:"➜",studentAdmissions:"🎓",academicResults:"📊",timetables:"🗓",feeLedger:"💳",staffAttendance:"🕘",libraryLoans:"📚",churchMembers:"⛪",givingLedger:"♡",outreach:"🤝",tableMap:"🍽",recipeCosting:"🥘",foodSafety:"🧼",roomBoard:"🛏",guestRegister:"🛎",tourItineraries:"🗺",fleetMaintenance:"🚐",siteDailyLogs:"🏗",estimates:"🧾",safetyChecks:"⚠",cleaningChecklist:"🧹",chemicalRegister:"🧴",clinicalVisits:"🩺",clinicalVitals:"🩺",prescriptions:"💊",dispensing:"💊",workOrders:"🧰",vehicleJobs:"🔧",printProduction:"🖨",creativePipeline:"🎨",eventRunsheet:"🎪",rentalLedger:"🏠",propertyMaintenance:"🔨",reservations:"📅",patientQueue:"🏥",orderFulfilment:"📦",stockLots:"🏷"};
 function renderIndustryModules(industry) {
   const nav = $("#sidebar-modules");
   if (!nav) return;
   nav.replaceChildren();
-  const keys = industryModuleKeys[industry] || industryModuleKeys["Other specialist business"];
+  const keys = industryModuleKeys[industry] || schoolModuleKeys;
   $("#industry-modules-intro").textContent = "A live snapshot of " + (industry || "your business") + " operations. Use the sidebar to open each specialist module.";
   if (window.matchMedia("(max-width: 680px)").matches) $("#workspace-sidebar").classList.add("hidden");
   else $("#workspace-sidebar").classList.remove("hidden");
