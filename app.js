@@ -1,11 +1,11 @@
 // Firebase web configuration is added after copying it from Firebase Console.
 const firebaseConfig = {
-  apiKey: "REPLACE_WITH_FIREBASE_WEB_API_KEY",
+  apiKey: "AIzaSyB-dlQtjt9r_iKrM7GytukIjOPDN_zcBpY",
   authDomain: "jowi-biz-os.firebaseapp.com",
   projectId: "jowi-biz-os",
   storageBucket: "jowi-biz-os.firebasestorage.app",
-  messagingSenderId: "REPLACE_WITH_MESSAGING_SENDER_ID",
-  appId: "REPLACE_WITH_FIREBASE_APP_ID"
+  messagingSenderId: "821672776356",
+  appId: "1:821672776356:web:1fd58e0a923807299ccc31"
 };
 
 const form = document.querySelector("#auth-form");
