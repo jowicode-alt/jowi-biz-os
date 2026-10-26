@@ -107,6 +107,7 @@ async function openWorkspace(user) {
       const businessDoc = snapshot.docs[0];
       currentBusinessId = businessDoc.id;
       const business = businessDoc.data();
+      renderIndustryModules(business.industry);
       moduleView.classList.add("hidden");
       $("#dashboard-business-name").textContent = business.name || "Your business";
       $("#dashboard-business-meta").textContent = [business.industry, business.country].filter(Boolean).join(" • ");
@@ -216,6 +217,7 @@ workspaceForm.addEventListener("submit", async event => {
     }
     await firestoreApi.addDoc(firestoreApi.collection(firestoreApi.db, "businesses"), business);
     currentBusinessId = (await firestoreApi.getDocs(firestoreApi.query(firestoreApi.collection(firestoreApi.db, "businesses"), firestoreApi.where("ownerId", "==", currentUser.uid)))).docs[0]?.id || null;
+    renderIndustryModules(business.industry);
     $("#dashboard-business-name").textContent = business.name;
     $("#dashboard-business-meta").textContent = [business.industry, business.country].filter(Boolean).join(" • ");
     setupPanel.classList.add("hidden");
@@ -311,9 +313,78 @@ const moduleDefinitions = {
   tasks: {title:"Tasks & staff",description:"Track work items and who is responsible.",collection:"tasks",fields:[["title","Task","text",true],["assignedTo","Assigned to","text",false],["dueDate","Due date","date",false],["status","Status","select",true,["Not started","In progress","Done"]]]},
   invoices: {title:"Invoices & receipts",description:"Track invoices and payment status. This MVP stores records; printable document generation will be added separately.",collection:"invoices",fields:[["customer","Customer / client","text",true],["amount","Amount due","number",true],["dueDate","Due date","date",false],["status","Status","select",true,["Draft","Sent","Paid","Overdue"]]]},
   reports: {title:"Reports",description:"A live summary of recorded sales and expenses.",collection:null,fields:[]},
-  staff: {title:"Staff directory",description:"Maintain basic staff contact records.",collection:"staff",fields:[["name","Staff member","text",true],["role","Role / job title","text",true],["phone","Phone","tel",false],["email","Email","email",false]]}
+  staff: {title:"Staff directory",description:"Maintain basic staff contact records.",collection:"staff",fields:[["name","Staff member","text",true],["role","Role / job title","text",true],["phone","Phone","tel",false],["email","Email","email",false]]},
+  inventory: {title:"Inventory & stock",description:"Track products, quantities and reorder levels.",collection:"inventory",fields:[["name","Product / item","text",true],["sku","SKU / item code","text",false],["quantity","Quantity in stock","number",true],["reorderLevel","Reorder level","number",false],["unitCost","Unit cost","number",false]]},
+  suppliers: {title:"Suppliers",description:"Manage supplier contacts and supply details.",collection:"suppliers",fields:[["name","Supplier name","text",true],["contactName","Contact person","text",false],["phone","Phone","tel",false],["email","Email","email",false],["itemsSupplied","Items supplied","text",false]]},
+  appointments: {title:"Appointments & bookings",description:"Schedule clients, services and appointment status.",collection:"appointments",fields:[["customer","Client / customer","text",true],["service","Service","text",true],["date","Date","date",true],["time","Time","text",false],["status","Status","select",true,["Requested","Confirmed","Completed","Cancelled"]]]},
+  services: {title:"Service menu",description:"Maintain the services your business offers and their prices.",collection:"services",fields:[["name","Service name","text",true],["duration","Duration / notes","text",false],["price","Price","number",true],["staffMember","Assigned staff","text",false]]},
+  students: {title:"Student register",description:"Maintain student enrolment and guardian contact details.",collection:"students",fields:[["name","Student name","text",true],["studentId","Student ID","text",false],["className","Class / course","text",true],["guardian","Parent / guardian","text",false],["guardianPhone","Guardian phone","tel",false],["status","Status","select",true,["Active","Completed","Withdrawn"]]]},
+  classes: {title:"Classes & courses",description:"Organise classes, courses, teachers and schedules.",collection:"classes",fields:[["name","Class / course name","text",true],["teacher","Teacher / trainer","text",false],["schedule","Schedule","text",false],["location","Room / location","text",false]]},
+  attendance: {title:"Attendance register",description:"Record attendance for a class or group.",collection:"attendance",fields:[["className","Class / group","text",true],["personName","Student / member name","text",true],["date","Date","date",true],["status","Attendance","select",true,["Present","Absent","Late","Excused"]]]},
+  members: {title:"Members directory",description:"Keep member and community contact records.",collection:"members",fields:[["name","Member name","text",true],["phone","Phone","tel",false],["email","Email","email",false],["group","Group / ministry","text",false],["status","Status","select",true,["Active","Inactive"]]]},
+  events: {title:"Events & activities",description:"Plan gatherings, activities and assigned coordinators.",collection:"events",fields:[["name","Event name","text",true],["date","Date","date",true],["location","Location","text",false],["coordinator","Coordinator","text",false],["status","Status","select",true,["Planning","Confirmed","Completed","Cancelled"]]]},
+  donations: {title:"Donations & contributions",description:"Record contributions and their purpose.",collection:"donations",fields:[["contributor","Contributor (optional)","text",false],["amount","Amount","number",true],["purpose","Purpose / fund","text",true],["date","Date","date",true],["method","Method","select",true,["Cash","Mobile money","Bank transfer","Other"]]]},
+  menu: {title:"Menu & products",description:"Manage menu items, prices and availability.",collection:"menu",fields:[["name","Item name","text",true],["category","Category","text",false],["price","Price","number",true],["available","Availability","select",true,["Available","Unavailable"]]]},
+  orders: {title:"Orders & kitchen tickets",description:"Track customer orders from receipt to completion.",collection:"orders",fields:[["orderNumber","Order / ticket number","text",true],["customer","Customer / table","text",false],["items","Items ordered","text",true],["amount","Order total","number",true],["status","Status","select",true,["New","Preparing","Ready","Served","Cancelled"]]]},
+  projects: {title:"Projects & jobs",description:"Track project owners, deadlines, budgets and delivery status.",collection:"projects",fields:[["name","Project name","text",true],["client","Client","text",false],["startDate","Start date","date",false],["dueDate","Target completion","date",false],["budget","Budget","number",false],["status","Status","select",true,["Planned","In progress","On hold","Completed"]]]},
+  materials: {title:"Materials & equipment",description:"Track project materials, equipment and quantities.",collection:"materials",fields:[["name","Material / equipment","text",true],["project","Project / site","text",false],["quantity","Quantity","number",true],["unit","Unit","text",false],["status","Status","select",true,["In stock","Assigned to site","Low stock","Used"]]]},
+  patients: {title:"Patient appointments",description:"Manage appointment logistics. Avoid storing unnecessary sensitive medical details here.",collection:"patientAppointments",fields:[["patientName","Patient name","text",true],["appointmentType","Appointment type","text",true],["date","Appointment date","date",true],["time","Time","text",false],["status","Status","select",true,["Booked","Arrived","Completed","Cancelled"]]]},
+  medicines: {title:"Medicine stock",description:"Track medicine stock levels and expiry dates; use access controls appropriate for your clinic or pharmacy.",collection:"medicines",fields:[["name","Medicine / product","text",true],["batch","Batch number","text",false],["quantity","Quantity","number",true],["expiryDate","Expiry date","date",false],["reorderLevel","Reorder level","number",false]]},
+  serviceJobs: {title:"Service jobs",description:"Track customer requests, assigned technicians and job progress.",collection:"serviceJobs",fields:[["jobTitle","Job / service requested","text",true],["customer","Customer","text",true],["assignedTo","Assigned technician / team","text",false],["scheduledDate","Scheduled date","date",false],["price","Quoted price","number",false],["status","Status","select",true,["New","Scheduled","In progress","Waiting for parts","Completed"]]]},
+  cleaningSchedules: {title:"Cleaning schedules",description:"Plan recurring cleaning work and assign teams.",collection:"cleaningSchedules",fields:[["site","Client / site","text",true],["service","Cleaning service","text",true],["date","Scheduled date","date",true],["team","Assigned team","text",false],["frequency","Frequency","select",true,["Once","Daily","Weekly","Monthly"]],["status","Status","select",true,["Scheduled","In progress","Completed"]]]},
+  properties: {title:"Property listings",description:"Manage properties, rental or sale status and asking prices.",collection:"properties",fields:[["name","Property / listing","text",true],["type","Property type","text",false],["location","Location","text",true],["price","Price / rent","number",false],["status","Status","select",true,["Available","Reserved","Rented","Sold"]]]},
+  viewings: {title:"Viewings & inspections",description:"Schedule property viewings and inspections.",collection:"viewings",fields:[["property","Property","text",true],["contact","Prospect / tenant","text",true],["date","Date","date",true],["assignedTo","Agent","text",false],["status","Status","select",true,["Requested","Confirmed","Completed","Cancelled"]]]},
+  printJobs: {title:"Print & production jobs",description:"Track artwork, production requirements and delivery deadlines.",collection:"printJobs",fields:[["jobName","Job / artwork name","text",true],["client","Client","text",true],["specifications","Specifications / quantity","text",false],["dueDate","Due date","date",false],["amount","Quoted amount","number",false],["status","Status","select",true,["Quoted","Approved","In production","Ready","Delivered"]]]},
+  quotes: {title:"Quotes & estimates",description:"Prepare and track client quotations.",collection:"quotes",fields:[["quoteTitle","Quote / estimate","text",true],["client","Client","text",true],["amount","Quoted amount","number",true],["validUntil","Valid until","date",false],["status","Status","select",true,["Draft","Sent","Accepted","Declined","Expired"]]]},
+  bookings: {title:"Bookings & reservations",description:"Track reservations, dates, guests and booking status.",collection:"bookings",fields:[["bookingName","Booking / reservation","text",true],["customer","Customer / guest","text",true],["startDate","Start date","date",true],["endDate","End date","date",false],["partySize","People / units","number",false],["status","Status","select",true,["Requested","Confirmed","Checked in / started","Completed","Cancelled"]]]},
+  fleet: {title:"Vehicles, rooms & equipment",description:"Track key operational assets and availability.",collection:"fleet",fields:[["name","Vehicle / room / asset","text",true],["assetCode","Registration / asset code","text",false],["capacity","Capacity","number",false],["status","Status","select",true,["Available","In use","Maintenance","Unavailable"]]]},
+  trips: {title:"Trips & itineraries",description:"Organise trips, routes, guides and trip status.",collection:"trips",fields:[["name","Trip / route","text",true],["date","Departure date","date",true],["destination","Destination","text",true],["guide","Driver / guide","text",false],["capacity","Capacity","number",false],["status","Status","select",true,["Planned","Booked","Departed","Completed","Cancelled"]]]},
+  purchaseOrders: {title:"Purchase orders",description:"Track orders placed with suppliers.",collection:"purchaseOrders",fields:[["supplier","Supplier","text",true],["orderReference","Order reference","text",false],["items","Items ordered","text",true],["amount","Order amount","number",true],["expectedDate","Expected delivery","date",false],["status","Status","select",true,["Draft","Sent","Partially received","Received","Cancelled"]]]},
+  deliveryOrders: {title:"Deliveries & fulfilment",description:"Track customer orders, delivery details and fulfilment status.",collection:"deliveryOrders",fields:[["customer","Customer","text",true],["orderReference","Order reference","text",false],["destination","Delivery address / area","text",true],["date","Delivery date","date",false],["assignedTo","Driver / team","text",false],["status","Status","select",true,["Pending","Packed","Out for delivery","Delivered","Returned"]]]}
 };
 
+const coreModuleKeys = ["customers","sales","expenses","tasks","invoices","reports","staff"];
+const industryModuleKeys = {
+  "Retail / Shop": ["inventory","suppliers","purchaseOrders"],
+  "Salon / Barber / Spa": ["appointments","services"],
+  "School / Training": ["students","classes","attendance"],
+  "Church / Community organisation": ["members","events","donations"],
+  "Restaurant / Catering": ["menu","orders","bookings"],
+  "Construction / Contractor": ["projects","materials","serviceJobs"],
+  "Clinic / Pharmacy": ["patients","appointments","medicines"],
+  "Cleaning services": ["serviceJobs","cleaningSchedules","staff"],
+  "Real estate": ["properties","viewings","customers"],
+  "Agency / Printing / Branding": ["projects","printJobs","quotes"],
+  "Transport / Tours / Guesthouse": ["bookings","fleet","trips"],
+  "Repairs / Technical services": ["serviceJobs","inventory","suppliers"],
+  "Supplier / Distributor": ["inventory","suppliers","purchaseOrders","deliveryOrders"],
+  "Other": ["appointments","serviceJobs"]
+};
+const moduleIcons = {customers:"♙",sales:"↗",expenses:"↘",tasks:"✓",invoices:"▤",reports:"▥",staff:"♟",inventory:"▦",suppliers:"⇄",appointments:"◷",services:"✦",students:"♧",classes:"▤",attendance:"✓",members:"♙",events:"✧",donations:"♡",menu:"☷",orders:"▤",projects:"▧",materials:"▦",patients:"◷",medicines:"✚",serviceJobs:"⚒",cleaningSchedules:"◷",properties:"⌂",viewings:"⌖",printJobs:"▧",quotes:"▤",bookings:"◷",fleet:"▰",trips:"➜",purchaseOrders:"⇄",deliveryOrders:"➜"};
+function renderIndustryModules(industry) {
+  const grid = $("#module-grid");
+  if (!grid) return;
+  grid.replaceChildren();
+  const keys = [...new Set([...coreModuleKeys, ...(industryModuleKeys[industry] || industryModuleKeys.Other)])];
+  $("#industry-modules-intro").textContent = "Core business tools plus services tailored for " + (industry || "your business") + ".";
+  keys.forEach(key => {
+    const def = moduleDefinitions[key];
+    if (!def) return;
+    const card = document.createElement("article");
+    card.className = "module-card";
+    card.dataset.module = key;
+    card.tabIndex = 0;
+    card.setAttribute("role","button");
+    const icon = document.createElement("span"); icon.className="module-icon"; icon.textContent=moduleIcons[key] || "•";
+    const heading = document.createElement("h3"); heading.textContent=def.title;
+    const description = document.createElement("p"); description.textContent=def.description;
+    const action = document.createElement("span"); action.className="module-status"; action.textContent="Open module →";
+    card.append(icon,heading,description,action);
+    card.addEventListener("click",()=>openModule(key));
+    card.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();openModule(key);}});
+    grid.append(card);
+  });
+}
 function makeField(field) {
   const [name,label,type,required,options] = field;
   const wrap = document.createElement("div");
@@ -353,7 +424,7 @@ async function openModule(key) {
   definition.fields.forEach(field => recordForm.append(makeField(field)));
   const submit = document.createElement("button");
   submit.type = "submit";
-  submit.textContent = "Save " + (key === "customers" ? "customer" : key === "sales" ? "sale" : key === "expenses" ? "expense" : key === "invoices" ? "invoice record" : key === "staff" ? "staff member" : "task");
+  submit.textContent = "Save " + (definition.singular || definition.title.replace(/\s*&.*/, "").replace(/s$/, "").toLowerCase());
   recordForm.append(submit);
   await loadRecords();
 }
@@ -441,11 +512,4 @@ recordForm.addEventListener("submit", async event => {
 });
 
 $("#module-back").addEventListener("click",()=>{moduleView.classList.add("hidden");dashboardPanel.classList.remove("hidden");activeModule=null;});
-document.querySelectorAll("[data-module]").forEach(card=>{
-  card.addEventListener("click",()=>openModule(card.dataset.module));
-  card.addEventListener("keydown",event=>{
-    if(event.key==="Enter" || event.key===" "){event.preventDefault();openModule(card.dataset.module);}
-  });
-});
-
 updateMode();
