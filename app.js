@@ -633,28 +633,23 @@ recordForm.addEventListener("submit", async event => {
 });
 
 async function loadDashboardAnalytics() {
-  const chart = $("#analytics-chart");
-  const summary = $("#activity-summary");
-  if (!currentBusinessId || !chart || !summary) return;
-  try {
-    const results = await Promise.all([
-      firestoreApi.getDocs(firestoreApi.collection(firestoreApi.db,"businesses",currentBusinessId,"sales")),
-      firestoreApi.getDocs(firestoreApi.collection(firestoreApi.db,"businesses",currentBusinessId,"expenses"))
-    ]);
-    const sales = results[0].docs, expenses = results[1].docs;
-    const amount = d => Number(d.amount || d.total || d.price || 0);
-    const total = docs => docs.reduce((n,doc)=>n+amount(doc.data()),0);
-    const monthRows = []; const now = new Date();
-    for (let i=5;i>=0;i--) { const d=new Date(now.getFullYear(),now.getMonth()-i,1); monthRows.push({key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString(undefined,{month:"short"}),sales:0,expenses:0}); }
-    const assign = (docs,key) => docs.forEach(doc => { const d=doc.data(); const date=d.createdAt&&d.createdAt.toDate?d.createdAt.toDate():(d.date?new Date(d.date):null); if(!date||isNaN(date.getTime()))return; const k=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0"); const row=monthRows.find(x=>x.key===k); if(row)row[key]+=amount(d); });
-    assign(sales,"sales"); assign(expenses,"expenses");
-    const max=Math.max(1,...monthRows.map(x=>Math.max(x.sales,x.expenses))); const W=600,H=230,L=40,R=8,T=10,B=32,PH=H-T-B,PW=W-L-R,G=PW/6,BW=16;
-    let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Sales and expenses for the last six months">';
+  const chart=$("#analytics-chart"), summary=$("#activity-summary");
+  if(!currentBusinessId||!chart||!summary||!firestoreApi)return;
+  try{
+    const names=["feeLedger","students","attendance","academicResults","studentAdmissions"];
+    const snaps=await Promise.all(names.map(name=>firestoreApi.getDocs(firestoreApi.collection(firestoreApi.db,"businesses",currentBusinessId,name))));
+    const fees=snaps[0].docs, students=snaps[1].docs, attendance=snaps[2].docs, results=snaps[3].docs, admissions=snaps[4].docs;
+    const num=v=>Number(v||0), billed=fees.reduce((n,d)=>n+num(d.data().amountDue),0), collected=fees.reduce((n,d)=>n+num(d.data().amountPaid),0);
+    const months=[], now=new Date();
+    for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString(undefined,{month:"short"}),billed:0,collected:0});}
+    fees.forEach(doc=>{const v=doc.data(),date=v.createdAt&&v.createdAt.toDate?v.createdAt.toDate():(v.date?new Date(v.date):null);if(!date||isNaN(date.getTime()))return;const key=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0"),row=months.find(m=>m.key===key);if(row){row.billed+=num(v.amountDue);row.collected+=num(v.amountPaid);}});
+    const max=Math.max(1,...months.map(m=>Math.max(m.billed,m.collected))),W=600,H=230,L=52,R=8,T=10,B=32,PH=H-T-B,G=(W-L-R)/6,BW=16;
+    let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Fees billed and collected over six months">';
     for(let i=0;i<4;i++){const y=T+PH*i/3;svg+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#edf1ed"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#819087">'+Math.round(max*(1-i/3)).toLocaleString()+'</text>';}
-    monthRows.forEach((m,i)=>{const x=L+G*(i+.5),sh=PH*m.sales/max,eh=PH*m.expenses/max;svg+='<rect x="'+(x-BW-2)+'" y="'+(T+PH-sh)+'" width="'+BW+'" height="'+sh+'" rx="3" fill="#2f855a"><title>'+m.label+' sales '+m.sales+'</title></rect><rect x="'+(x+2)+'" y="'+(T+PH-eh)+'" width="'+BW+'" height="'+eh+'" rx="3" fill="#e7a35a"><title>'+m.label+' expenses '+m.expenses+'</title></rect><text x="'+x+'" y="'+(H-10)+'" text-anchor="middle" font-size="11" fill="#718076">'+m.label+'</text>';});
-    svg+='</svg>'; chart.innerHTML=svg;
-    summary.innerHTML='<div><span>Sales records</span><strong>'+sales.length+'</strong></div><div><span>Expense records</span><strong>'+expenses.length+'</strong></div><div><span>Total sales</span><strong>'+total(sales).toLocaleString()+'</strong></div><div><span>Total expenses</span><strong>'+total(expenses).toLocaleString()+'</strong></div>';
-  } catch(error) { chart.innerHTML='<p class="analytics-empty">Analytics could not load. Check Firestore permissions and refresh.</p>'; console.error("Dashboard analytics error",error); }
+    months.forEach((m,i)=>{const x=L+G*(i+.5),bh=PH*m.billed/max,ch=PH*m.collected/max;svg+='<rect x="'+(x-BW-2)+'" y="'+(T+PH-bh)+'" width="'+BW+'" height="'+bh+'" rx="3" fill="#2f855a"><title>'+m.label+' billed '+m.billed+'</title></rect><rect x="'+(x+2)+'" y="'+(T+PH-ch)+'" width="'+BW+'" height="'+ch+'" rx="3" fill="#e7a35a"><title>'+m.label+' collected '+m.collected+'</title></rect><text x="'+x+'" y="'+(H-10)+'" text-anchor="middle" font-size="11" fill="#718076">'+m.label+'</text>';});
+    chart.innerHTML=svg+'</svg>';
+    summary.innerHTML='<div><span>Students enrolled</span><strong>'+students.length+'</strong></div><div><span>Attendance entries</span><strong>'+attendance.length+'</strong></div><div><span>Assessment records</span><strong>'+results.length+'</strong></div><div><span>Admission applications</span><strong>'+admissions.length+'</strong></div><div><span>Fees billed</span><strong>'+billed.toLocaleString()+'</strong></div><div><span>Fees recorded as paid</span><strong>'+collected.toLocaleString()+'</strong></div>';
+  }catch(error){chart.innerHTML='<p class="analytics-empty">School analytics could not load. Check Firestore permissions and refresh.</p>';console.error("School analytics error",error);}
 }
 function showClientOverview() {
   moduleView.classList.add("hidden");
