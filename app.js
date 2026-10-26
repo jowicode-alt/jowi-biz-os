@@ -440,6 +440,11 @@ recordForm.addEventListener("submit", async event => {
 });
 
 $("#module-back").addEventListener("click",()=>{moduleView.classList.add("hidden");dashboardPanel.classList.remove("hidden");activeModule=null;});
-document.querySelectorAll("[data-module]").forEach(card=>card.addEventListener("click",()=>openModule(card.dataset.module)));
+document.querySelectorAll("[data-module]").forEach(card=>{
+  card.addEventListener("click",()=>openModule(card.dataset.module));
+  card.addEventListener("keydown",event=>{
+    if(event.key==="Enter" || event.key===" "){event.preventDefault();openModule(card.dataset.module);}
+  });
+});
 
 updateMode();
