@@ -49,6 +49,14 @@
     </section>
   </main>
   <main id="workspace-view" class="workspace-shell hidden">
+    <aside id="workspace-sidebar" class="workspace-sidebar hidden" aria-label="Business modules">
+      <div class="sidebar-heading"><span class="eyebrow">WORKSPACE</span><button id="sidebar-close" class="sidebar-close" type="button" aria-label="Close sidebar">×</button></div>
+      <button id="sidebar-overview" class="sidebar-link active" type="button"><span>⌂</span> Client overview</button>
+      <div class="sidebar-section-label">INDUSTRY MODULES</div>
+      <nav id="sidebar-modules" class="sidebar-modules" aria-label="Industry modules"></nav>
+      <p class="sidebar-footnote">Tools shown here are selected for this workspace's industry.</p>
+    </aside>
+    <div class="workspace-content">
     <section id="setup-panel" class="auth-card setup-card">
       <span class="eyebrow">FIRST-TIME SETUP</span>
       <h1>Set up your business</h1>
@@ -81,10 +89,13 @@
         <div><span class="eyebrow">YOUR BUSINESS OVERVIEW</span><h1 id="dashboard-business-name">Your workspace</h1><p id="dashboard-business-meta" class="muted"></p></div>
         <span class="workspace-pill">Workspace active</span>
       </div>
-      <div class="welcome-banner"><h2>Welcome to Jowi Biz OS</h2><p>Your workspace is ready. This is the foundation for managing your business in one place.</p></div>
-      <h2 class="section-title">Workspace modules</h2>
-      <p id="industry-modules-intro" class="muted">Your workspace tools are tailored to your industry.</p>
-      <div class="module-grid" id="module-grid"></div>
+      <div class="overview-heading"><div><span class="eyebrow">AT A GLANCE</span><h2>Client overview</h2><p id="industry-modules-intro" class="muted">A live snapshot of your industry-specific operations.</p></div><button id="sidebar-open" class="secondary-button" type="button">☰ Open modules</button></div>
+      <div class="overview-metrics" id="overview-metrics">
+        <article class="overview-metric"><span>Industry modules</span><strong id="metric-modules">—</strong><small>Tools available in this workspace</small></article>
+        <article class="overview-metric"><span>Total records</span><strong id="metric-records">—</strong><small>Saved operational records</small></article>
+        <article class="overview-metric"><span>Workspace status</span><strong class="metric-status">Active</strong><small>Your workspace is ready</small></article>
+      </div>
+      <section class="overview-panel"><div><h2>Run today's work</h2><p>Open a module from the sidebar to record activity, update its status, and review saved records.</p></div><div class="overview-hint"><span class="overview-hint-icon">↗</span><span><b>Industry-specific tools</b><small>Only the tools mapped to your selected industry are listed.</small></span></div></section>
       <p id="dashboard-message" role="status" aria-live="polite"></p>
     </section>
     <section id="module-view" class="auth-card module-view hidden" aria-live="polite">
@@ -95,6 +106,7 @@
       <div class="records-heading"><h2 id="records-title">Records</h2><span id="records-count" class="workspace-pill">0 records</span></div>
       <div id="records-list" class="records-list"></div>
     </section>
+    </div>
   </main>
   <footer>Jowi Biz OS <span>•</span> Built for businesses of every size</footer>
   <script type="module" src="app.js"></script>
