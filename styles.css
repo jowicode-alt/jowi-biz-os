@@ -76,3 +76,56 @@
 .workflow-steps{display:grid;gap:9px;padding-left:22px;margin:0;color:#526359;font-size:12px;line-height:1.7}
 .workflow-steps li{padding-left:3px}
 @media(max-width:760px){.workflow-meta{grid-template-columns:1fr}.module-workflow-guide{padding:15px}}
+
+
+/* Jowi Biz OS — polished commercial dashboard layer */
+:root{color-scheme:light;--ink:#172b23;--muted:#697a70;--line:#e5ebe6;--brand:#245d43;--brand-soft:#eaf4ed;--surface:#fff;--canvas:#f4f7f5}
+body{background:var(--canvas);color:var(--ink)}
+.topbar{position:sticky;top:0;z-index:30;min-height:72px;padding:0 clamp(18px,3vw,42px);background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.brand-mark{box-shadow:0 5px 14px #174f3a22}
+.workspace-shell{width:min(1600px,100%);padding:0 clamp(12px,2vw,28px);margin:22px auto 48px;gap:22px}
+.workspace-shell:has(.workspace-sidebar:not(.hidden)){grid-template-columns:250px minmax(0,1fr);gap:22px}
+.workspace-sidebar{top:94px;max-height:calc(100vh - 112px);border-radius:16px;padding:16px 11px;box-shadow:0 8px 26px #203d2b08}
+.sidebar-heading{padding:7px 9px 17px}
+.sidebar-link,.sidebar-module-link{min-height:42px;border-radius:9px;transition:background .15s,color .15s}
+.sidebar-link:hover,.sidebar-module-link:hover{background:#f1f6f2;color:#205d40}
+.sidebar-link.active,.sidebar-module-link.active{background:#e5f1e8;color:#185638}
+.workspace-content{min-width:0}
+.dashboard-heading{padding:8px 2px 21px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.dashboard-heading h1{font-size:clamp(28px,3vw,36px);letter-spacing:-1.2px}
+.dashboard-heading .muted{margin:5px 0 0}
+.workspace-pill{background:#e8f4ec;color:#236544;border:1px solid #d5e9db}
+.overview-heading{margin:20px 0 17px;align-items:center}
+.overview-heading h2{font-size:22px;letter-spacing:-.6px;margin:7px 0 4px}
+.secondary-button{border:1px solid #dce6de;background:#fff;color:#315d45;border-radius:10px;padding:10px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 4px #1b332408}
+.secondary-button:hover{background:#f4f8f5;border-color:#b7d0bf}
+.overview-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.overview-metric{position:relative;overflow:hidden;min-height:140px;padding:20px;background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:0 5px 18px #193c2706}
+.overview-metric:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#7db391}
+.overview-metric span{display:block;color:#65766b;font-size:12px;font-weight:650}
+.overview-metric strong{display:block;margin:14px 0 9px;font-size:clamp(25px,2.6vw,34px);line-height:1.1;letter-spacing:-1px;color:#1c4d35}
+.overview-metric small{display:block;color:#89948d;font-size:11px;line-height:1.5}
+.metric-status{font-size:26px!important;color:#247044!important}
+.overview-panel{margin-top:19px;padding:24px;background:#fff;border:1px solid var(--line);border-radius:15px;display:flex;align-items:center;justify-content:space-between;gap:22px;box-shadow:0 5px 18px #193c2706}
+.overview-panel h2{font-size:18px;margin:0 0 7px;letter-spacing:-.4px}
+.overview-panel p{margin:0;max-width:620px;color:#708076;font-size:13px;line-height:1.7}
+.overview-hint{display:flex;align-items:center;gap:12px;min-width:210px;padding:13px;border-radius:12px;background:#f3f8f4}
+.overview-hint-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#dfeee3;color:#236644;font-size:20px}
+.overview-hint b,.overview-hint small{display:block}
+.overview-hint b{font-size:12px;color:#315c43}
+.overview-hint small{margin-top:4px;color:#7b8a80;font-size:11px;line-height:1.5}
+.module-view{width:100%;max-width:1100px;margin:0 auto;padding:clamp(20px,3vw,34px);border-radius:18px;box-shadow:0 8px 30px #193c2708}
+.module-view-heading{padding-bottom:20px;border-bottom:1px solid #edf1ed}
+.module-view-heading h1{font-size:clamp(28px,3vw,36px)}
+.module-workflow-guide{margin:20px 0}
+.record-form{padding:20px;background:#f8faf8;border:1px solid #e8eee9;border-radius:14px}
+.record-form input,.record-form select{background:#fff}
+.record-form button[type=submit]{background:#245d43}
+.records-heading{padding-top:22px;border-top:1px solid #edf1ed}
+.records-list{gap:12px}
+.record-card{background:#fff;border-radius:12px;box-shadow:0 3px 10px #193c2705}
+.report-metric{background:#fff;border-radius:14px;box-shadow:0 4px 14px #193c2705}
+footer{padding-top:6px}
+@media(max-width:900px){.workspace-shell:has(.workspace-sidebar:not(.hidden)){grid-template-columns:220px minmax(0,1fr);gap:15px}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-panel{align-items:flex-start;flex-direction:column}.overview-hint{width:100%}}
+@media(max-width:680px){.topbar{min-height:64px}.workspace-shell,.workspace-shell:has(.workspace-sidebar:not(.hidden)){display:block;width:100%;padding:0 12px;margin:14px auto 35px}.workspace-sidebar{position:fixed;z-index:40;top:72px;left:12px;bottom:12px;width:min(300px,calc(100vw - 24px));max-height:none;box-shadow:0 20px 70px #10281b35}.dashboard-heading{gap:12px;padding-bottom:17px}.dashboard-heading h1{font-size:28px}.overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.overview-metric{min-height:125px;padding:15px}.overview-metric strong{font-size:27px}.overview-heading{align-items:flex-start}.overview-heading .secondary-button{flex-shrink:0;padding:9px 10px;font-size:12px}.overview-panel{padding:18px}.module-view{padding:20px 15px}.record-form{padding:14px}.records-list{grid-template-columns:1fr}}
+@media(max-width:380px){.overview-metrics{grid-template-columns:1fr}.overview-heading{flex-direction:column}.overview-heading .secondary-button{width:100%}}
