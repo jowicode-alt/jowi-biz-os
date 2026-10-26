@@ -1,51 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
-  match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isMember(businessId) {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/businesses/$(businessId)/members/$(request.auth.uid));
-    }
-
-    function isOwner(businessId) {
-      return signedIn() &&
-        get(/databases/$(database)/documents/businesses/$(businessId)).data.ownerId == request.auth.uid;
-    }
-
-    match /users/{userId} {
-      allow read, create, update: if signedIn() && request.auth.uid == userId;
-      allow delete: if false;
-    }
-
-    match /businesses/{businessId} {
-      allow create: if signedIn() &&
-        request.resource.data.ownerId == request.auth.uid;
-      // Using resource.data lets Firestore prove owner-only collection queries from ownerId filters.
-      allow read: if (signedIn() && resource.data.ownerId == request.auth.uid) ||
-        isMember(businessId);
-      allow update: if isOwner(businessId);
-      allow delete: if false;
-
-      match /members/{memberId} {
-        allow read: if signedIn() &&
-          (request.auth.uid == memberId || isOwner(businessId));
-        allow create, update: if isOwner(businessId) &&
-          request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt']) &&
-          request.resource.data.uid == memberId;
-        allow delete: if isOwner(businessId) && memberId != request.auth.uid;
-      }
-
-      match /{collection}/{documentId} {
-        allow read: if isMember(businessId) || isOwner(businessId);
-        allow create, update, delete: if isMember(businessId) || isOwner(businessId);
-      }
-    }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+ match /databases/{database}/documents {
+  function signedIn(){return request.auth!=null;}
+  function userPath(uid){return /databases/$(database)/documents/users/$(uid);}
+  function hasProfile(){return signedIn()&&exists(userPath(request.auth.uid));}
+  function profile(){return get(userPath(request.auth.uid)).data;}
+  function memberPath(id,uid){return /databases/$(database)/documents/institutions/$(id)/members/$(uid);}
+  function inInstitution(id){return hasProfile()&&profile().institutionId==id&&exists(memberPath(id,request.auth.uid));}
+  function memberRole(id){return get(memberPath(id,request.auth.uid)).data.role;}
+  function canManage(id){return inInstitution(id)&&memberRole(id) in ['owner','institution_admin','campus_admin'];}
+  function canTeach(id){return inInstitution(id)&&memberRole(id) in ['owner','institution_admin','campus_admin','lecturer'];}
+  match /users/{uid}{
+   allow get:if signedIn()&&request.auth.uid==uid;allow list:if false;
+   allow create:if signedIn()&&request.auth.uid==uid&&request.resource.data.uid==uid&&request.resource.data.role=='owner'&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt']);
+   allow update:if signedIn()&&request.auth.uid==uid&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email']);allow delete:if false;
   }
+  match /institutions/{id}{
+   allow create:if signedIn()&&request.resource.data.ownerId==request.auth.uid&&request.resource.data.keys().hasOnly(['name','type','country','timezone','ownerId','status','createdAt','createdBy']);
+   allow read:if inInstitution(id);allow update:if canManage(id)&&request.resource.data.ownerId==resource.data.ownerId;allow delete:if false;
+   match /members/{uid}{
+    allow read:if inInstitution(id)&&(request.auth.uid==uid||canManage(id));
+    allow create:if signedIn()&&request.auth.uid==uid&&get(/databases/$(database)/documents/institutions/$(id)).data.ownerId==request.auth.uid&&request.resource.data.uid==uid&&request.resource.data.role=='owner'&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt']);
+    allow update:if canManage(id)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','role','status']);allow delete:if false;
+   }
+   match /campuses/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','city','timezone','createdAt','createdBy']);allow delete:if false;}
+   match /classes/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);allow delete:if false;}
+   match /students/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','studentNumber','classId','status','createdAt','createdBy']);allow delete:if false;}
+   match /sessions/{docId}{
+    allow read:if inInstitution(id);
+    allow create:if canTeach(id)&&request.resource.data.createdBy==request.auth.uid&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['title','classId','status','durationMinutes','requiresGps','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    allow update:if canTeach(id)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion','status','closedAt','closedBy'])&&(request.resource.data.status==resource.data.status||(resource.data.status=='active'&&request.resource.data.status=='closed'));allow delete:if false;
+   }
+   match /attendance/{docId}{allow read:if inInstitution(id);allow create:if canTeach(id);allow update,delete:if false;}
+   match /{document=**}{allow read,write:if false;}
+  }
+  match /{document=**}{allow read,write:if false;}
+ }
 }

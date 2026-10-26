@@ -1,4 +1,4 @@
-name: Deploy Jowi Biz OS to Firebase Hosting
+name: Deploy InterCampus Attendance to Firebase Hosting
 
 on:
   push:
