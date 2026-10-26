@@ -68,6 +68,7 @@ service cloud.firestore {
    allow create: if (
      signedIn() && request.auth.uid == uid && request.resource.data.uid == uid
      && request.resource.data.role == 'owner' && request.resource.data.status == 'active'
+     && request.resource.data.email == request.auth.token.email
      && request.resource.data.institutionCode is string
      && request.resource.data.institutionCode.matches('^IC-[A-Z0-9]{4}-[A-Z0-9]{4}$')
      && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
@@ -98,7 +99,7 @@ service cloud.firestore {
      ))
      && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','institutionId','institutionCode','role','status','createdAt','createdBy','assignedCampusId','classId','studentNumber','parentName','parentPhone','registeredDeviceId'])
    );
-   allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','dateOfBirth','gender','photoDataUrl']);
+   allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','dateOfBirth','gender','photoDataUrl']) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photoDataUrl']) || (request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000));
    allow delete: if false;
   }
   match /institutions/{id}/accessRequests/{uid} {
@@ -176,6 +177,7 @@ service cloud.firestore {
       signedIn() && request.auth.uid == uid
       && getAfter(/databases/$(database)/documents/institutions/$(id)).data.ownerId == request.auth.uid
       && request.resource.data.uid == uid && request.resource.data.role == 'owner'
+      && request.resource.data.email == request.auth.token.email
       && request.resource.data.status == 'active'
       && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
       && request.resource.data.gender is string && request.resource.data.photoDataUrl is string
