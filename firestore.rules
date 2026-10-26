@@ -63,7 +63,25 @@ service cloud.firestore {
       && request.resource.data.closedAt is number;
     allow delete:if false;
    }
-   match /attendance/{docId}{allow read:if inInstitution(id);allow create,update,delete:if false;}
+   match /attendance/{docId}{
+    allow read:if inInstitution(id);
+    allow create:if canTeach(id)
+      && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','markedBy','markedAt'])
+      && request.resource.data.sessionId is string
+      && request.resource.data.studentId is string
+      && request.resource.data.studentName is string
+      && request.resource.data.studentNumber is string
+      && request.resource.data.classId is string
+      && request.resource.data.status=='present'
+      && request.resource.data.markedBy==request.auth.uid
+      && request.resource.data.markedAt is timestamp
+      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status=='active'
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId==request.resource.data.classId
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId==request.resource.data.classId;
+    allow update,delete:if false;
+   }
    match /{document=**}{allow read,write:if false;}
   }
   match /{document=**}{allow read,write:if false;}
