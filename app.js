@@ -436,7 +436,8 @@ function renderIndustryModules(industry) {
   nav.replaceChildren();
   const keys = industryModuleKeys[industry] || industryModuleKeys["Other specialist business"];
   $("#industry-modules-intro").textContent = "A live snapshot of " + (industry || "your business") + " operations. Use the sidebar to open each specialist module.";
-  $("#workspace-sidebar").classList.remove("hidden");
+  if (window.matchMedia("(max-width: 680px)").matches) $("#workspace-sidebar").classList.add("hidden");
+  else $("#workspace-sidebar").classList.remove("hidden");
   $("#metric-modules").textContent = String(keys.filter(key => moduleDefinitions[key]).length);
   keys.forEach(key => {
     const def = moduleDefinitions[key];
@@ -451,7 +452,10 @@ function renderIndustryModules(industry) {
     const label = document.createElement("span");
     label.textContent = def.title;
     link.append(icon, label);
-    link.addEventListener("click", () => openModule(key));
+    link.addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 680px)").matches) $("#workspace-sidebar").classList.add("hidden");
+      openModule(key);
+    });
     nav.append(link);
   });
   loadOverviewMetrics(keys);
@@ -680,7 +684,10 @@ function showClientOverview() {
   document.querySelectorAll(".sidebar-module-link").forEach(link => link.classList.remove("active"));
 }
 $("#module-back").addEventListener("click", showClientOverview);
-$("#sidebar-overview").addEventListener("click", showClientOverview);
+$("#sidebar-overview").addEventListener("click", () => {
+  showClientOverview();
+  if (window.matchMedia("(max-width: 680px)").matches) $("#workspace-sidebar").classList.add("hidden");
+});
 $("#sidebar-open").addEventListener("click", () => $("#workspace-sidebar").classList.remove("hidden"));
 $("#sidebar-close").addEventListener("click", () => $("#workspace-sidebar").classList.add("hidden"));
 document.addEventListener("keydown", event => {
