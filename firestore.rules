@@ -23,7 +23,9 @@ service cloud.firestore {
     match /businesses/{businessId} {
       allow create: if signedIn() &&
         request.resource.data.ownerId == request.auth.uid;
-      allow read: if isMember(businessId) || isOwner(businessId);
+      // Using resource.data lets Firestore prove owner-only collection queries from ownerId filters.
+      allow read: if (signedIn() && resource.data.ownerId == request.auth.uid) ||
+        isMember(businessId);
       allow update: if isOwner(businessId);
       allow delete: if false;
 
