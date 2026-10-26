@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { strict as assert } from "node:assert";
 
 const projectId = "demo-intercampus";
@@ -11,12 +11,13 @@ const lecturer = env.authenticatedContext("lecturer-1").firestore();
 const campusAdmin = env.authenticatedContext("campus-admin-1").firestore();
 const outsider = env.authenticatedContext("outsider-1").firestore();
 const unauth = env.unauthenticatedContext().firestore();
+const invitedStudent = env.authenticatedContext("student-new", { email: "student-new@example.test" }).firestore();
 
 try {
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "users/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", institutionId: "inst-1", role: "owner", status: "active", createdAt: new Date() });
-    await setDoc(doc(db, "institutions/inst-1"), { name: "Test Institution", type: "College", country: "Uganda", timezone: "Africa/Kampala", ownerId: "owner-1", status: "pilot", createdAt: new Date(), createdBy: "owner-1" });
+    await setDoc(doc(db, "users/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", institutionId: "inst-1", institutionCode: "IC-ABCD-2345", role: "owner", status: "active", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1"), { name: "Test Institution", type: "College", country: "Uganda", timezone: "Africa/Kampala", ownerId: "owner-1", institutionCode: "IC-ABCD-2345", status: "pilot", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/members/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "users/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", institutionId: "inst-1", role: "lecturer", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-1/members/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", role: "lecturer", status: "active", createdAt: new Date() });
@@ -53,7 +54,20 @@ try {
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
   await assertFails(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { title: "Tampered title", status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
 
-  console.log("PASS: Firestore access-control assertions, including role-escalation protection");
+  const inviteRef = doc(owner, "invitations/student-new@example.test__inst-1");
+  const invite = { name: "New Student", email: "student-new@example.test", contact: "+256700000001", institutionId: "inst-1", institutionCode: "IC-ABCD-2345", role: "student", assignedCampusId: "campus-1", classId: "class-1", className: "Class 1", studentNumber: "S-100", createdBy: "owner-1", createdByRole: "owner", status: "pending", createdAt: serverTimestamp() };
+  await assertSucceeds(setDoc(inviteRef, invite));
+  await assertSucceeds(getDoc(doc(invitedStudent, "invitations/student-new@example.test__inst-1")));
+  const registration = writeBatch(invitedStudent);
+  registration.update(doc(invitedStudent, "invitations/student-new@example.test__inst-1"), { status: "accepted", acceptedUid: "student-new", acceptedAt: serverTimestamp() });
+  const photoDataUrl = "data:image/jpeg;base64,AAAA";
+  registration.set(doc(invitedStudent, "users/student-new"), { uid: "student-new", name: "New Student", email: "student-new@example.test", contact: "+256700000001", dateOfBirth: "2008-04-12", gender: "Female", photoDataUrl, institutionId: "inst-1", institutionCode: "IC-ABCD-2345", role: "student", status: "active", createdAt: serverTimestamp(), createdBy: "owner-1", assignedCampusId: "campus-1", classId: "class-1", studentNumber: "S-100", parentName: "Guardian", parentPhone: "+256700000002", registeredDeviceId: "device-token-123" });
+  registration.set(doc(invitedStudent, "institutions/inst-1/members/student-new"), { uid: "student-new", name: "New Student", email: "student-new@example.test", contact: "+256700000001", dateOfBirth: "2008-04-12", gender: "Female", photoDataUrl, role: "student", status: "active", createdAt: serverTimestamp(), createdBy: "owner-1", assignedCampusId: "campus-1" });
+  registration.set(doc(invitedStudent, "institutions/inst-1/students/student-new"), { name: "New Student", studentNumber: "S-100", classId: "class-1", campusId: "campus-1", authUid: "student-new", deviceId: "device-token-123", status: "active", contact: "+256700000001", parentName: "Guardian", parentPhone: "+256700000002", dateOfBirth: "2008-04-12", gender: "Female", photoDataUrl, createdAt: serverTimestamp(), createdBy: "owner-1" });
+  await assertSucceeds(registration.commit());
+  await assertSucceeds(getDoc(doc(invitedStudent, "institutions/inst-1/students/student-new")));
+
+  console.log("PASS: Firestore access control, role hierarchy, invitation acceptance and automatic learner UID/device binding");
 } finally {
   await env.cleanup();
 }
