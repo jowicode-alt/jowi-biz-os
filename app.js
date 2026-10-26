@@ -676,9 +676,34 @@ recordForm.addEventListener("submit", async event => {
   finally { button.disabled=false; }
 });
 
+async function loadDashboardAnalytics() {
+  const chart = $("#analytics-chart");
+  const summary = $("#activity-summary");
+  if (!currentBusinessId || !chart || !summary) return;
+  try {
+    const results = await Promise.all([
+      firestoreApi.getDocs(firestoreApi.collection(firestoreApi.db,"businesses",currentBusinessId,"sales")),
+      firestoreApi.getDocs(firestoreApi.collection(firestoreApi.db,"businesses",currentBusinessId,"expenses"))
+    ]);
+    const sales = results[0].docs, expenses = results[1].docs;
+    const amount = d => Number(d.amount || d.total || d.price || 0);
+    const total = docs => docs.reduce((n,doc)=>n+amount(doc.data()),0);
+    const monthRows = []; const now = new Date();
+    for (let i=5;i>=0;i--) { const d=new Date(now.getFullYear(),now.getMonth()-i,1); monthRows.push({key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString(undefined,{month:"short"}),sales:0,expenses:0}); }
+    const assign = (docs,key) => docs.forEach(doc => { const d=doc.data(); const date=d.createdAt&&d.createdAt.toDate?d.createdAt.toDate():(d.date?new Date(d.date):null); if(!date||isNaN(date.getTime()))return; const k=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0"); const row=monthRows.find(x=>x.key===k); if(row)row[key]+=amount(d); });
+    assign(sales,"sales"); assign(expenses,"expenses");
+    const max=Math.max(1,...monthRows.map(x=>Math.max(x.sales,x.expenses))); const W=600,H=230,L=40,R=8,T=10,B=32,PH=H-T-B,PW=W-L-R,G=PW/6,BW=16;
+    let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Sales and expenses for the last six months">';
+    for(let i=0;i<4;i++){const y=T+PH*i/3;svg+='<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#edf1ed"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="10" fill="#819087">'+Math.round(max*(1-i/3)).toLocaleString()+'</text>';}
+    monthRows.forEach((m,i)=>{const x=L+G*(i+.5),sh=PH*m.sales/max,eh=PH*m.expenses/max;svg+='<rect x="'+(x-BW-2)+'" y="'+(T+PH-sh)+'" width="'+BW+'" height="'+sh+'" rx="3" fill="#2f855a"><title>'+m.label+' sales '+m.sales+'</title></rect><rect x="'+(x+2)+'" y="'+(T+PH-eh)+'" width="'+BW+'" height="'+eh+'" rx="3" fill="#e7a35a"><title>'+m.label+' expenses '+m.expenses+'</title></rect><text x="'+x+'" y="'+(H-10)+'" text-anchor="middle" font-size="11" fill="#718076">'+m.label+'</text>';});
+    svg+='</svg>'; chart.innerHTML=svg;
+    summary.innerHTML='<div><span>Sales records</span><strong>'+sales.length+'</strong></div><div><span>Expense records</span><strong>'+expenses.length+'</strong></div><div><span>Total sales</span><strong>'+total(sales).toLocaleString()+'</strong></div><div><span>Total expenses</span><strong>'+total(expenses).toLocaleString()+'</strong></div>';
+  } catch(error) { chart.innerHTML='<p class="analytics-empty">Analytics could not load. Check Firestore permissions and refresh.</p>'; console.error("Dashboard analytics error",error); }
+}
 function showClientOverview() {
   moduleView.classList.add("hidden");
   dashboardPanel.classList.remove("hidden");
+  loadDashboardAnalytics();
   activeModule = null;
   $("#sidebar-overview").classList.add("active");
   document.querySelectorAll(".sidebar-module-link").forEach(link => link.classList.remove("active"));
