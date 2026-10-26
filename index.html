@@ -10,9 +10,10 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#"><span class="brand-mark">J</span><span>Jowi <b>Biz OS</b></span></a>
-    <span class="secure-note">One workspace. Your whole business.</span>
+    <span class="secure-note" id="topbar-note">One workspace. Your whole business.</span>
+    <button id="signout-btn" class="text-button hidden" type="button">Sign out</button>
   </header>
-  <main class="shell">
+  <main class="shell" id="auth-view">
     <section class="intro">
       <span class="eyebrow">BUSINESS OPERATIONS, SIMPLIFIED</span>
       <h1>Spend less time managing.<br><em>More time growing.</em></h1>
@@ -44,6 +45,49 @@
       </form>
       <p class="switch-copy"><span id="switch-label">New to Jowi Biz OS?</span> <button class="text-button" id="switch-mode" type="button">Create account</button></p>
       <p class="small-print">Your business information is private to your authorised workspace members.</p>
+    </section>
+  </main>
+  <main id="workspace-view" class="workspace-shell hidden">
+    <section id="setup-panel" class="auth-card setup-card">
+      <span class="eyebrow">FIRST-TIME SETUP</span>
+      <h1>Set up your business</h1>
+      <p class="muted">Create your workspace once. You can configure more details later.</p>
+      <form id="workspace-form">
+        <label for="business-name">Business or organisation name</label>
+        <input id="business-name" required maxlength="100" placeholder="e.g. Jowi Services">
+        <label for="industry">Industry</label>
+        <select id="industry" required>
+          <option value="">Choose your industry</option>
+          <option>Retail / Shop</option><option>Salon / Barber / Spa</option>
+          <option>School / Training</option><option>Church / Community organisation</option>
+          <option>Restaurant / Catering</option><option>Construction / Contractor</option>
+          <option>Clinic / Pharmacy</option><option>Cleaning services</option>
+          <option>Real estate</option><option>Agency / Printing / Branding</option>
+          <option>Transport / Tours / Guesthouse</option><option>Repairs / Technical services</option>
+          <option>Supplier / Distributor</option><option>Other</option>
+        </select>
+        <label for="business-country">Country</label>
+        <input id="business-country" value="Uganda" required maxlength="80">
+        <button type="submit" id="workspace-submit">Create workspace</button>
+        <p id="workspace-message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+    <section id="dashboard-panel" class="dashboard-panel hidden">
+      <div class="dashboard-heading">
+        <div><span class="eyebrow">YOUR BUSINESS OVERVIEW</span><h1 id="dashboard-business-name">Your workspace</h1><p id="dashboard-business-meta" class="muted"></p></div>
+        <span class="workspace-pill">Workspace active</span>
+      </div>
+      <div class="welcome-banner"><h2>Welcome to Jowi Biz OS</h2><p>Your workspace is ready. This is the foundation for managing your business in one place.</p></div>
+      <h2 class="section-title">Workspace modules</h2>
+      <div class="module-grid">
+        <article class="module-card"><span class="module-icon">♙</span><h3>Customers</h3><p>Keep customer records organised.</p><span class="module-status">Coming next</span></article>
+        <article class="module-card"><span class="module-icon">↗</span><h3>Sales & payments</h3><p>Track income and transactions.</p><span class="module-status">Coming next</span></article>
+        <article class="module-card"><span class="module-icon">↘</span><h3>Expenses</h3><p>Record business spending.</p><span class="module-status">Coming next</span></article>
+        <article class="module-card"><span class="module-icon">✓</span><h3>Tasks & staff</h3><p>Organise daily work and your team.</p><span class="module-status">Coming next</span></article>
+        <article class="module-card"><span class="module-icon">▤</span><h3>Invoices & receipts</h3><p>Prepare professional business documents.</p><span class="module-status">Coming next</span></article>
+        <article class="module-card"><span class="module-icon">▥</span><h3>Reports</h3><p>Review business performance.</p><span class="module-status">Coming next</span></article>
+      </div>
+      <p id="dashboard-message" role="status" aria-live="polite"></p>
     </section>
   </main>
   <footer>Jowi Biz OS <span>•</span> Built for businesses of every size</footer>
