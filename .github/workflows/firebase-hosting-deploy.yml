@@ -29,7 +29,7 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json" npx --yes firebase-tools@latest deploy --only firestore:rules --project jowi-biz-os --non-interactive
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json" npx --yes firebase-tools@latest deploy --only firestore:rules,functions --project jowi-biz-os --non-interactive
           rm -f "$RUNNER_TEMP/firebase-service-account.json"
 
       - name: Deploy to Firebase Hosting
