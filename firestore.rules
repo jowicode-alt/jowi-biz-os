@@ -10,6 +10,52 @@ service cloud.firestore {
   function memberRole(id){return get(memberPath(id,request.auth.uid)).data.role;}
   function canManage(id){return inInstitution(id)&&memberRole(id) in ['owner','institution_admin','campus_admin'];}
   function canTeach(id){return inInstitution(id)&&memberRole(id) in ['owner','institution_admin','campus_admin','lecturer'];}
+  function validSessionCreate(id){
+   return canTeach(id)
+    && request.resource.data.createdBy==request.auth.uid
+    && request.resource.data.status=='active'
+    && request.resource.data.title is string
+    && request.resource.data.title.size()>0
+    && request.resource.data.classId is string
+    && request.resource.data.durationMinutes in [30,45,60,90,120]
+    && request.resource.data.requiresGps is bool
+    && request.resource.data.createdAt is timestamp
+    && request.resource.data.openedAt is number
+    && request.resource.data.expiresAt is number
+    && request.resource.data.expiresAt>request.resource.data.openedAt
+    && request.resource.data.expiresAt-request.resource.data.openedAt==request.resource.data.durationMinutes*60000
+    && request.resource.data.activeCode is string
+    && request.resource.data.activeCode.matches('^[0-9]{6}  match /users/{uid}{
+   allow get:if signedIn()&&request.auth.uid==uid;allow list:if false;
+   allow create:if signedIn()&&request.auth.uid==uid&&request.resource.data.uid==uid&&request.resource.data.role=='owner'&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt']);
+   allow update:if signedIn()&&request.auth.uid==uid&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email']);allow delete:if false;
+  }
+  match /institutions/{id}{
+   allow create:if signedIn()&&request.resource.data.ownerId==request.auth.uid&&request.resource.data.keys().hasOnly(['name','type','country','timezone','ownerId','status','createdAt','createdBy']);
+   allow read:if inInstitution(id);allow update:if canManage(id)&&request.resource.data.ownerId==resource.data.ownerId;allow delete:if false;
+   match /members/{uid}{
+    allow read:if inInstitution(id)&&(request.auth.uid==uid||canManage(id));
+    allow create:if signedIn()&&request.auth.uid==uid&&get(/databases/$(database)/documents/institutions/$(id)).data.ownerId==request.auth.uid&&request.resource.data.uid==uid&&request.resource.data.role=='owner'&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt']);
+    allow update:if canManage(id)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','role','status']);allow delete:if false;
+   }
+   match /campuses/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','city','timezone','createdAt','createdBy']);allow delete:if false;}
+   match /classes/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);allow delete:if false;}
+   match /students/{docId}{allow read:if inInstitution(id);allow create,update:if canManage(id)&&request.resource.data.keys().hasOnly(['name','studentNumber','classId','status','createdAt','createdBy']);allow delete:if false;}
+   match /sessions/{docId}{
+    allow read:if inInstitution(id);
+    allow create:if validSessionCreate(id);
+    allow update:if canTeach(id)&&request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])&&request.resource.data.status=='closed'&&resource.data.status=='active'&&resource.data.createdBy==request.auth.uid&&request.resource.data.closedBy==request.auth.uid&&request.resource.data.closedAt is number;allow delete:if false;
+   }
+   match /attendance/{docId}{allow read:if inInstitution(id);allow create,update,delete:if false;}
+   match /{document=**}{allow read,write:if false;}
+  }
+  match /{document=**}{allow read,write:if false;}
+ }
+})
+    && request.resource.data.codeUpdatedAt==request.resource.data.openedAt
+    && request.resource.data.codeVersion==1
+    && request.resource.data.keys().hasOnly(['title','classId','status','durationMinutes','requiresGps','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+  }
   match /users/{uid}{
    allow get:if signedIn()&&request.auth.uid==uid;allow list:if false;
    allow create:if signedIn()&&request.auth.uid==uid&&request.resource.data.uid==uid&&request.resource.data.role=='owner'&&request.resource.data.status=='active'&&request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt']);
