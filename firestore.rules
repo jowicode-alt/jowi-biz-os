@@ -11,6 +11,14 @@ service cloud.firestore {
   function canManage(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin']; }
   function canAdminMembers(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
   function assignedCampus(id) { return get(memberPath(id, request.auth.uid)).data.assignedCampusId; }
+  function canCreateMember(id, targetRole, campusId) {
+   return inInstitution(id) && (
+    (memberRole(id) in ['owner','institution_admin'] && targetRole in ['institution_admin','campus_admin','lecturer','student'])
+    || (memberRole(id) == 'campus_admin' && targetRole in ['lecturer','student'] && assignedCampus(id) == campusId)
+    || (memberRole(id) == 'lecturer' && targetRole == 'student' && assignedCampus(id) == campusId)
+   );
+  }
+  function assignedCampus(id) { return get(memberPath(id, request.auth.uid)).data.assignedCampusId; }
   function canManageCampus(id, campusId) {
    return inInstitution(id) && (
     memberRole(id) in ['owner','institution_admin']
@@ -48,7 +56,7 @@ service cloud.firestore {
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
    allow list: if false;
-   allow create: if (signedIn() && request.auth.uid == uid && request.resource.data.uid == uid && request.resource.data.role == 'owner' && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt'])) || (signedIn() && canAdminMembers(request.resource.data.institutionId) && request.resource.data.uid == uid && request.resource.data.role in ['institution_admin','campus_admin','lecturer','student'] && request.resource.data.status == 'active' && existsAfter(memberPath(request.resource.data.institutionId, uid)) && getAfter(memberPath(request.resource.data.institutionId, uid)).data.role == request.resource.data.role && request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt']));
+   allow create: if (signedIn() && request.auth.uid == uid && request.resource.data.uid == uid && request.resource.data.role == 'owner' && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt'])) || (signedIn() && request.resource.data.uid == uid && request.resource.data.status == 'active' && existsAfter(memberPath(request.resource.data.institutionId, uid)) && getAfter(memberPath(request.resource.data.institutionId, uid)).data.role == request.resource.data.role && canCreateMember(request.resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId', '')) && request.resource.data.keys().hasOnly(['uid','name','email','institutionId','role','status','createdAt','createdBy','assignedCampusId']));
    allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email']);
    allow delete: if false;
   }
@@ -73,7 +81,97 @@ service cloud.firestore {
    allow delete: if false;
   }
   match /institutions/{id} {
-   allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['name','type','country','timezone','ownerId','status','createdAt','createdBy']);
+   allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.institutionCode is string && request.resource.data.institutionCode.matches('^IC-[A-Z0-9]{4}-[A-Z0-9]{4};
+   allow read: if inInstitution(id);
+   allow update: if canAdminMembers(id) && request.resource.data.ownerId == resource.data.ownerId;
+   allow delete: if false;
+   match /members/{uid} {
+    allow read: if inInstitution(id) && (request.auth.uid == uid || canManage(id));
+    allow create: if (signedIn() && request.auth.uid == uid && get(/databases/$(database)/documents/institutions/$(id)).data.ownerId == request.auth.uid && request.resource.data.uid == uid && request.resource.data.role == 'owner' && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt'])) || (uid != request.auth.uid && request.resource.data.uid == uid && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt','createdBy','assignedCampusId']) && (request.resource.data.role == 'institution_admin' || request.resource.data.assignedCampusId is string) && canCreateMember(id, request.resource.data.role, request.resource.data.get('assignedCampusId', '')));
+    allow update: if canAdminMembers(id) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','role','status']);
+    allow delete: if false;
+   }
+   match /campuses/{docId} {
+    allow read: if inInstitution(id);
+    allow create, update: if canManageCampus(id, docId) && request.resource.data.keys().hasOnly(['name','city','timezone','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /classes/{docId} {
+    allow read: if inInstitution(id);
+    allow create, update: if canManageCampus(id, request.resource.data.campusId) && request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /students/{docId} {
+    allow read: if inInstitution(id);
+    allow create, update: if canManageClass(id, request.resource.data.classId) && request.resource.data.keys().hasOnly(['name','studentNumber','classId','authUid','deviceId','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /sessions/{docId} {
+    allow read: if inInstitution(id);
+    allow create: if validSessionCreate(id) && canManageClass(id, request.resource.data.classId);
+    allow update: if canTeach(id) && canManageClass(id, resource.data.classId) && (
+      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
+       && resource.data.status == 'active' && resource.data.createdBy == request.auth.uid
+       && request.resource.data.activeCode is string && request.resource.data.activeCode.matches('^[0-9]{6}$')
+       && request.resource.data.codeUpdatedAt is number
+       && request.resource.data.codeUpdatedAt >= resource.data.codeUpdatedAt + 25000
+       && request.resource.data.codeUpdatedAt <= request.time.toMillis() + 5000
+       && request.resource.data.codeVersion == resource.data.codeVersion + 1)
+      ||
+      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
+       && request.resource.data.status == 'closed' && resource.data.status == 'active'
+       && resource.data.createdBy == request.auth.uid && request.resource.data.closedBy == request.auth.uid
+       && request.resource.data.closedAt is number)
+    );
+    allow delete: if false;
+   }
+   match /attendance/{docId} {
+    allow read: if inInstitution(id);
+    allow create: if (
+      request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+      && request.resource.data.sessionId is string && request.resource.data.studentId is string
+      && request.resource.data.studentName is string && request.resource.data.studentNumber is string
+      && request.resource.data.classId is string && request.resource.data.status == 'present'
+      && request.resource.data.deviceId is string && request.resource.data.code is string
+      && request.resource.data.location is latlng && request.resource.data.accuracyMeters is number
+      && request.resource.data.accuracyMeters <= 100 && request.resource.data.checkedAt == request.time
+      && docId == request.resource.data.sessionId + '_' + request.resource.data.studentId
+      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt > request.time.toMillis()
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.activeCode == request.resource.data.code
+      && request.time.toMillis() - get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt <= 35000
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid == request.auth.uid
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.deviceId == request.resource.data.deviceId
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId
+      && (!get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.requiresGps
+        || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
+          && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
+            <= get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.radiusMeters))
+      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId))
+    ) || (
+      canTeach(id)
+      && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','markedBy','markedAt'])
+      && request.resource.data.sessionId is string && request.resource.data.studentId is string
+      && request.resource.data.studentName is string && request.resource.data.studentNumber is string
+      && request.resource.data.classId is string && request.resource.data.status == 'present'
+      && request.resource.data.markedBy == request.auth.uid && request.resource.data.markedAt == request.time
+      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId
+    );
+    allow update, delete: if false;
+   }
+   match /{document=**} { allow read, write: if false; }
+  }
+  match /{document=**} { allow read, write: if false; }
+ }
+}) && request.resource.data.keys().hasOnly(['institutionCode','name','type','country','timezone','ownerId','status','createdAt','createdBy']);
    allow read: if inInstitution(id);
    allow update: if canAdminMembers(id) && request.resource.data.ownerId == resource.data.ownerId;
    allow delete: if false;
