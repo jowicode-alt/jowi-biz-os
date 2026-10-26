@@ -37,7 +37,8 @@ service cloud.firestore {
    return get(/databases/$(database)/documents/institutions/$(id)/classes/$(classId)).data.campusId;
   }
   function canManageClass(id, classId) {
-   return canManageCampus(id, classCampus(id, classId));
+   return canManageCampus(id, classCampus(id, classId))
+    || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == classCampus(id, classId));
   }
   function canTeach(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']; }
   function validSessionCreate(id) {
