@@ -179,6 +179,7 @@ service cloud.firestore {
       && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','role','status','createdAt'])
     ) || (
       signedIn() && request.auth.uid == uid && request.resource.data.uid == uid
+      && request.resource.data.email == request.auth.token.email
       && request.resource.data.status == 'active'
       && hasAcceptedInvite(id, uid, request.resource.data.role, get(/databases/$(database)/documents/institutions/$(id)).data.institutionCode)
       && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
