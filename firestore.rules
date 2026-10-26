@@ -52,6 +52,26 @@ service cloud.firestore {
    allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email']);
    allow delete: if false;
   }
+  match /institutions/{id}/accessRequests/{uid} {
+   allow create, update: if signedIn() && request.auth.uid == uid
+    && request.resource.data.uid == uid
+    && request.resource.data.email == request.auth.token.email
+    && request.resource.data.requestedRole in ['student','lecturer']
+    && request.resource.data.status == 'pending'
+    && request.resource.data.keys().hasOnly(['uid','name','email','requestedRole','status','createdAt']);
+   allow read: if signedIn() && (
+    (exists(userPath(request.auth.uid)) && get(userPath(request.auth.uid)).data.institutionId == id
+      && get(memberPath(id, request.auth.uid)).data.role in ['owner','institution_admin'])
+    || request.auth.uid == uid
+   );
+   allow update: if signedIn() && exists(userPath(request.auth.uid))
+    && get(userPath(request.auth.uid)).data.institutionId == id
+    && get(memberPath(id, request.auth.uid)).data.role in ['owner','institution_admin']
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','reviewedBy','reviewedAt'])
+    && request.resource.data.status == 'approved'
+    && request.resource.data.reviewedBy == request.auth.uid;
+   allow delete: if false;
+  }
   match /institutions/{id} {
    allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.keys().hasOnly(['name','type','country','timezone','ownerId','status','createdAt','createdBy']);
    allow read: if inInstitution(id);
