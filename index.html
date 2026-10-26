@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142c25">
+  <title>Jowi Biz OS — Run your business in one place</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#"><span class="brand-mark">J</span><span>Jowi <b>Biz OS</b></span></a>
+    <span class="secure-note">One workspace. Your whole business.</span>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <span class="eyebrow">BUSINESS OPERATIONS, SIMPLIFIED</span>
+      <h1>Spend less time managing.<br><em>More time growing.</em></h1>
+      <p>Keep customers, sales, expenses, staff and daily work together in one flexible workspace built for real businesses.</p>
+      <div class="feature-list">
+        <div><span>✓</span> Sales and expense tracking</div>
+        <div><span>✓</span> Customers, tasks and appointments</div>
+        <div><span>✓</span> Reports that make sense</div>
+      </div>
+      <div class="industry-note"><b>Made to adapt.</b> Shops, salons, schools, contractors, restaurants, agencies and service teams.</div>
+    </section>
+    <section class="auth-card">
+      <div class="card-heading">
+        <span class="eyebrow">YOUR WORKSPACE</span>
+        <h2 id="auth-title">Welcome back</h2>
+        <p id="auth-subtitle">Sign in to manage your business.</p>
+      </div>
+      <form id="auth-form">
+        <label for="email">Email address</label>
+        <input id="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required>
+        <div id="name-wrap" class="hidden">
+          <label for="full-name">Your name</label>
+          <input id="full-name" type="text" autocomplete="name" placeholder="Full name">
+        </div>
+        <button id="submit-btn" type="submit">Sign in</button>
+        <p id="auth-message" role="status" aria-live="polite"></p>
+      </form>
+      <p class="switch-copy"><span id="switch-label">New to Jowi Biz OS?</span> <button class="text-button" id="switch-mode" type="button">Create account</button></p>
+      <p class="small-print">Your business information is private to your authorised workspace members.</p>
+    </section>
+  </main>
+  <footer>Jowi Biz OS <span>•</span> Built for businesses of every size</footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
