@@ -413,7 +413,21 @@ const industryModuleKeys = {
   "Plumbing / Electrical services": ["workOrders","estimates","materials","fleetMaintenance","safetyChecks"],
   "Repair / Field technician": ["workOrders","estimates","inventory","stockLots","fleetMaintenance"],
   "Wholesale supplier / Distributor": ["inventory","stockLots","suppliers","purchaseOrders","orderFulfilment","deliveryOrders"],
-  "Other specialist business": ["workOrders","estimates","bookings"]
+  "Other specialist business": ["workOrders","estimates","bookings"],
+  "Retail / Shop": ["inventory","orders","stockLots","suppliers"],
+  "Salon / Barber / Spa": ["appointments","services","staff","inventory"],
+  "School / Training": ["studentAdmissions","students","classes","attendance","academicResults","timetables","feeLedger"],
+  "Church / Community organisation": ["churchMembers","events","givingLedger","attendance","outreach"],
+  "Restaurant / Catering": ["menu","orders","tableMap","recipeCosting","foodSafety","reservations","inventory"],
+  "Construction / Contractor": ["projects","estimates","siteDailyLogs","materials","safetyChecks","purchaseOrders"],
+  "Clinic / Pharmacy": ["clinicalVisits","patientQueue","clinicalVitals","prescriptions"],
+  "Cleaning services": ["cleaningSchedules","cleaningChecklist","chemicalRegister","staffAttendance","estimates"],
+  "Real estate": ["properties","viewings","rentalLedger","propertyMaintenance"],
+  "Agency / Printing / Branding": ["printProduction","creativePipeline","quotes","projects"],
+  "Transport / Tours / Guesthouse": ["bookings","guestRegister","roomBoard","tourItineraries","fleetMaintenance"],
+  "Repairs / Technical services": ["workOrders","estimates","inventory","stockLots","fleetMaintenance"],
+  "Supplier / Distributor": ["inventory","stockLots","suppliers","purchaseOrders","orderFulfilment","deliveryOrders"],
+  "Other": ["workOrders","estimates","bookings"]
 };
 const moduleIcons = {inventory:"▦",suppliers:"⇄",appointments:"◷",services:"✦",students:"♧",classes:"▤",attendance:"✓",members:"♙",events:"✧",donations:"♡",menu:"☷",orders:"▤",projects:"▧",materials:"▦",medicines:"✚",serviceJobs:"⚒",cleaningSchedules:"◷",properties:"⌂",viewings:"⌖",printJobs:"▧",quotes:"▤",bookings:"◷",fleet:"▰",trips:"➜",purchaseOrders:"⇄",deliveryOrders:"➜",studentAdmissions:"🎓",academicResults:"📊",timetables:"🗓",feeLedger:"💳",staffAttendance:"🕘",libraryLoans:"📚",churchMembers:"⛪",givingLedger:"♡",outreach:"🤝",tableMap:"🍽",recipeCosting:"🥘",foodSafety:"🧼",roomBoard:"🛏",guestRegister:"🛎",tourItineraries:"🗺",fleetMaintenance:"🚐",siteDailyLogs:"🏗",estimates:"🧾",safetyChecks:"⚠",cleaningChecklist:"🧹",chemicalRegister:"🧴",clinicalVisits:"🩺",clinicalVitals:"🩺",prescriptions:"💊",dispensing:"💊",workOrders:"🧰",vehicleJobs:"🔧",printProduction:"🖨",creativePipeline:"🎨",eventRunsheet:"🎪",rentalLedger:"🏠",propertyMaintenance:"🔨",reservations:"📅",patientQueue:"🏥",orderFulfilment:"📦",stockLots:"🏷"};
 function renderIndustryModules(industry) {
@@ -554,8 +568,7 @@ recordForm.addEventListener("submit", async event => {
   button.disabled=true;
   try {
     const data={};
-    moduleDefinitions[activeModule].fields.forEach(([name])=>{const input=recordForm.elements.namedItem(name);data[name]=input.value.trim();});
-    if ("amount" in data) data.amount=Number(data.amount);
+    moduleDefinitions[activeModule].fields.forEach(([name,,type])=>{const input=recordForm.elements.namedItem(name);data[name]=type==="number" ? (input.value==="" ? null : Number(input.value)) : input.value.trim();});
     data.createdAt=firestoreApi.serverTimestamp();
     data.updatedAt=firestoreApi.serverTimestamp();
     await firestoreApi.addDoc(recordsCollection(activeModule),data);
