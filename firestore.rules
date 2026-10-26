@@ -10,6 +10,19 @@ service cloud.firestore {
   function memberRole(id) { return get(memberPath(id, request.auth.uid)).data.role; }
   function canManage(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin']; }
   function canAdminMembers(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
+  function invitePath(email, id) { return /databases/$(database)/documents/invitations/$(email + '__' + id); }
+  function hasAcceptedInvite(id, uid, targetRole, code) {
+   return signedIn() && request.auth.uid == uid && request.auth.token.email is string
+    && exists(invitePath(request.auth.token.email, id))
+    && get(invitePath(request.auth.token.email, id)).data.email == request.auth.token.email
+    && get(invitePath(request.auth.token.email, id)).data.institutionId == id
+    && get(invitePath(request.auth.token.email, id)).data.institutionCode == code
+    && get(invitePath(request.auth.token.email, id)).data.role == targetRole
+    && get(invitePath(request.auth.token.email, id)).data.status == 'pending'
+    && existsAfter(invitePath(request.auth.token.email, id))
+    && getAfter(invitePath(request.auth.token.email, id)).data.status == 'accepted'
+    && getAfter(invitePath(request.auth.token.email, id)).data.acceptedUid == uid;
+  }
   function assignedCampus(id) { return get(memberPath(id, request.auth.uid)).data.assignedCampusId; }
   function canCreateMember(id, targetRole, campusId) {
    return inInstitution(id) && ((memberRole(id) == 'owner' && targetRole in ['institution_admin','campus_admin','lecturer','student']) || (memberRole(id) == 'institution_admin' && targetRole in ['campus_admin','lecturer','student']) || (memberRole(id) == 'campus_admin' && targetRole in ['lecturer','student'] && assignedCampus(id) == campusId) || (memberRole(id) == 'lecturer' && targetRole == 'student' && assignedCampus(id) == campusId));
@@ -51,8 +64,37 @@ service cloud.firestore {
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
    allow list: if false;
-   allow create: if (signedIn() && request.auth.uid == uid && request.resource.data.uid == uid && request.resource.data.role == 'owner' && request.resource.data.status == 'active' && request.resource.data.institutionCode is string && request.resource.data.institutionCode.matches('^IC-[A-Z0-9]{4}-[A-Z0-9]{4}$') && existsAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)) && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.ownerId == uid && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode == request.resource.data.institutionCode && request.resource.data.keys().hasOnly(['uid','name','email','institutionId','institutionCode','role','status','createdAt'])) || (signedIn() && request.resource.data.uid == uid && request.resource.data.status == 'active' && existsAfter(memberPath(request.resource.data.institutionId, uid)) && getAfter(memberPath(request.resource.data.institutionId, uid)).data.role == request.resource.data.role && canCreateMember(request.resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId', '')) && request.resource.data.institutionCode == get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode && request.resource.data.keys().hasOnly(['uid','name','email','institutionId','institutionCode','role','status','createdAt','createdBy','assignedCampusId']));
-   allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email']);
+   allow create: if (
+     signedIn() && request.auth.uid == uid && request.resource.data.uid == uid
+     && request.resource.data.role == 'owner' && request.resource.data.status == 'active'
+     && request.resource.data.institutionCode is string
+     && request.resource.data.institutionCode.matches('^IC-[A-Z0-9]{4}-[A-Z0-9]{4}$')
+     && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
+     && request.resource.data.gender is string && request.resource.data.photoDataUrl is string
+     && request.resource.data.photoDataUrl.size() <= 180000
+     && existsAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId))
+     && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.ownerId == uid
+     && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode == request.resource.data.institutionCode
+     && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','institutionId','institutionCode','role','status','createdAt'])
+   ) || (
+     signedIn() && request.auth.uid == uid && request.resource.data.uid == uid
+     && request.resource.data.email == request.auth.token.email
+     && request.resource.data.status == 'active'
+     && request.resource.data.institutionId is string
+     && request.resource.data.institutionCode == get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode
+     && hasAcceptedInvite(request.resource.data.institutionId, uid, request.resource.data.role, request.resource.data.institutionCode)
+     && request.resource.data.name is string && request.resource.data.contact is string
+     && request.resource.data.dateOfBirth is string && request.resource.data.gender is string
+     && request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000
+     && (request.resource.data.role != 'student' || (
+       request.resource.data.registeredDeviceId is string
+       && existsAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/students/$(uid))
+       && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/students/$(uid)).data.authUid == uid
+       && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/students/$(uid)).data.deviceId == request.resource.data.registeredDeviceId
+     ))
+     && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','institutionId','institutionCode','role','status','createdAt','createdBy','assignedCampusId','classId','studentNumber','parentName','parentPhone','registeredDeviceId'])
+   );
+   allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','dateOfBirth','gender','photoDataUrl']);
    allow delete: if false;
   }
   match /institutions/{id}/accessRequests/{uid} {
@@ -75,6 +117,45 @@ service cloud.firestore {
     && request.resource.data.reviewedBy == request.auth.uid;
    allow delete: if false;
   }
+  match /invitations/{inviteId} {
+   allow get: if signedIn() && (request.auth.token.email == resource.data.email || (hasProfile() && profile().institutionId == resource.data.institutionId && canManage(resource.data.institutionId)));
+   allow list: if signedIn() && request.auth.token.email == resource.data.email;
+   allow create: if signedIn() && hasProfile()
+    && request.resource.data.createdBy == request.auth.uid
+    && request.resource.data.institutionId == profile().institutionId
+    && request.resource.data.institutionCode == get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode
+    && inviteId == request.resource.data.email + '__' + request.resource.data.institutionId
+    && request.resource.data.email is string && request.resource.data.contact is string
+    && request.resource.data.role in ['institution_admin','campus_admin','lecturer','student']
+    && request.resource.data.status == 'pending'
+    && canCreateMember(request.resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId',''))
+    && (request.resource.data.role == 'institution_admin' || request.resource.data.assignedCampusId is string)
+    && (request.resource.data.role != 'student' || (
+      request.resource.data.classId is string && request.resource.data.studentNumber is string
+      && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId))
+      && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId)).data.campusId == request.resource.data.assignedCampusId
+    ))
+    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt']);
+   allow update: if (
+     signedIn() && request.auth.uid == resource.data.createdBy
+     && resource.data.status in ['pending','email_failed']
+     && request.resource.data.status in ['pending','email_failed']
+     && request.resource.data.createdBy == resource.data.createdBy
+     && request.resource.data.email == resource.data.email
+     && request.resource.data.institutionId == resource.data.institutionId
+     && request.resource.data.institutionCode == resource.data.institutionCode
+     && canCreateMember(resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId',''))
+     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt'])
+   ) || (
+     signedIn() && request.auth.token.email == resource.data.email
+     && resource.data.status == 'pending'
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','acceptedUid','acceptedAt'])
+     && request.resource.data.status == 'accepted'
+     && request.resource.data.acceptedUid == request.auth.uid
+     && request.resource.data.acceptedAt == request.time
+   );
+   allow delete: if false;
+  }
   match /institutionCodes/{code} {
    allow create: if signedIn() && !exists(/databases/$(database)/documents/institutionCodes/$(code)) && request.resource.data.ownerId == request.auth.uid && request.resource.data.institutionId is string && existsAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)) && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.ownerId == request.auth.uid && getAfter(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode == code && request.resource.data.keys().hasOnly(['institutionId','ownerId','createdAt']);
    allow read: if signedIn() && exists(userPath(request.auth.uid)) && get(userPath(request.auth.uid)).data.institutionId == resource.data.institutionId;
@@ -87,8 +168,25 @@ service cloud.firestore {
    allow delete: if false;
    match /members/{uid} {
     allow read: if inInstitution(id) && (request.auth.uid == uid || canManage(id));
-    allow create: if (signedIn() && request.auth.uid == uid && getAfter(/databases/$(database)/documents/institutions/$(id)).data.ownerId == request.auth.uid && request.resource.data.uid == uid && request.resource.data.role == 'owner' && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt'])) || (uid != request.auth.uid && request.resource.data.uid == uid && request.resource.data.status == 'active' && request.resource.data.keys().hasOnly(['uid','name','email','role','status','createdAt','createdBy','assignedCampusId']) && (request.resource.data.role == 'institution_admin' || request.resource.data.assignedCampusId is string) && canCreateMember(id, request.resource.data.role, request.resource.data.get('assignedCampusId', '')));
-    allow update: if canAdminMembers(id) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','role','status']);
+    allow create: if (
+      signedIn() && request.auth.uid == uid
+      && getAfter(/databases/$(database)/documents/institutions/$(id)).data.ownerId == request.auth.uid
+      && request.resource.data.uid == uid && request.resource.data.role == 'owner'
+      && request.resource.data.status == 'active'
+      && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
+      && request.resource.data.gender is string && request.resource.data.photoDataUrl is string
+      && request.resource.data.photoDataUrl.size() <= 180000
+      && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','role','status','createdAt'])
+    ) || (
+      signedIn() && request.auth.uid == uid && request.resource.data.uid == uid
+      && request.resource.data.status == 'active'
+      && hasAcceptedInvite(id, uid, request.resource.data.role, get(/databases/$(database)/documents/institutions/$(id)).data.institutionCode)
+      && request.resource.data.contact is string && request.resource.data.dateOfBirth is string
+      && request.resource.data.gender is string && request.resource.data.photoDataUrl is string
+      && request.resource.data.photoDataUrl.size() <= 180000
+      && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','role','status','createdAt','createdBy','assignedCampusId'])
+    );
+    allow update: if canAdminMembers(id) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','role','status']);
     allow delete: if false;
    }
    match /campuses/{docId} {
@@ -103,7 +201,27 @@ service cloud.firestore {
    }
    match /students/{docId} {
     allow read: if inInstitution(id);
-    allow create, update: if canManageClass(id, request.resource.data.classId) && request.resource.data.keys().hasOnly(['name','studentNumber','classId','authUid','deviceId','status','createdAt','createdBy']);
+    allow create: if (
+      canManageClass(id, request.resource.data.classId)
+      && request.resource.data.keys().hasOnly(['name','studentNumber','classId','authUid','deviceId','status','createdAt','createdBy'])
+    ) || (
+      signedIn() && request.auth.uid == docId
+      && request.resource.data.authUid == request.auth.uid
+      && request.resource.data.status == 'active'
+      && request.resource.data.name is string && request.resource.data.studentNumber is string
+      && request.resource.data.classId is string && request.resource.data.campusId is string
+      && request.resource.data.deviceId is string && request.resource.data.contact is string
+      && request.resource.data.parentName is string && request.resource.data.parentPhone is string
+      && request.resource.data.dateOfBirth is string && request.resource.data.gender is string
+      && request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000
+      && hasAcceptedInvite(id, request.auth.uid, 'student', get(/databases/$(database)/documents/institutions/$(id)).data.institutionCode)
+      && getAfter(invitePath(request.auth.token.email, id)).data.classId == request.resource.data.classId
+      && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId
+      && getAfter(invitePath(request.auth.token.email, id)).data.studentNumber == request.resource.data.studentNumber
+      && request.resource.data.createdBy == get(invitePath(request.auth.token.email, id)).data.createdBy
+      && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
+    );
+    allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
     allow delete: if false;
    }
    match /sessions/{docId} {
