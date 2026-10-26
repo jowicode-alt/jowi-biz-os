@@ -99,7 +99,10 @@ service cloud.firestore {
      ))
      && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','institutionId','institutionCode','role','status','createdAt','createdBy','assignedCampusId','classId','studentNumber','parentName','parentPhone','registeredDeviceId'])
    );
-   allow update: if signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','dateOfBirth','gender','photoDataUrl']) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photoDataUrl']) || (request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000));
+   allow update: if signedIn() && request.auth.uid == uid
+    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','dateOfBirth','gender','photoDataUrl','institutionCode'])
+    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photoDataUrl']) || (request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000))
+    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['institutionCode']) || (request.resource.data.institutionCode is string && request.resource.data.institutionId is string && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode == request.resource.data.institutionCode));
    allow delete: if false;
   }
   match /institutions/{id}/accessRequests/{uid} {
