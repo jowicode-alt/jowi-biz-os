@@ -61,3 +61,18 @@
 @media(max-width:900px){.workspace-shell:has(.workspace-sidebar:not(.hidden)){grid-template-columns:210px minmax(0,1fr);gap:14px}.workspace-sidebar{padding:12px 8px}.overview-metrics{grid-template-columns:1fr 1fr}.overview-panel{grid-template-columns:1fr}}
 @media(max-width:680px){.workspace-shell,.workspace-shell:has(.workspace-sidebar:not(.hidden)){display:block;width:100%;padding:0 14px;margin:18px auto 45px}.workspace-sidebar{position:fixed;z-index:30;top:10px;bottom:10px;left:10px;width:min(300px,calc(100vw - 20px));max-height:none;box-shadow:0 20px 70px #0e2116a8}.workspace-sidebar:not(.hidden)::after{content:"";position:fixed;inset:0;z-index:-1;background:#12241b40}.workspace-content{width:100%}.overview-heading{align-items:flex-start;flex-direction:column}.overview-metrics{grid-template-columns:1fr 1fr;gap:10px}.overview-metric{padding:15px}.overview-metric strong{font-size:26px}.overview-panel{padding:18px}.overview-hint{padding:12px}#sidebar-open{display:inline-flex}.dashboard-heading{gap:12px}.module-view{padding:22px!important}}
 @media(max-width:420px){.overview-metrics{grid-template-columns:1fr}.overview-metric strong{margin:8px 0}.overview-heading h2{font-size:22px}}
+
+
+/* Workflow guide panel for industry-specific module procedures */
+.workspace-shell{display:block}
+.workspace-shell:has(.workspace-sidebar:not(.hidden)){display:grid}
+.module-workflow-guide{background:#f6f9f6;border:1px solid #e2ebe4;border-radius:15px;padding:20px;margin:18px 0 22px}
+.module-workflow-guide h2{font-size:17px;letter-spacing:-.3px;margin:0 0 15px;color:#214331}
+.module-workflow-guide h3{font-size:13px;margin:19px 0 10px;color:#344f3e}
+.workflow-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.workflow-meta-item{background:#fff;border:1px solid #e5ece6;border-radius:10px;padding:12px;min-width:0}
+.workflow-meta-item strong{display:block;font-size:11px;color:#2d6947;margin-bottom:6px}
+.workflow-meta-item p{font-size:11px;line-height:1.6;color:#6b796f;margin:0;overflow-wrap:anywhere}
+.workflow-steps{display:grid;gap:9px;padding-left:22px;margin:0;color:#526359;font-size:12px;line-height:1.7}
+.workflow-steps li{padding-left:3px}
+@media(max-width:760px){.workflow-meta{grid-template-columns:1fr}.module-workflow-guide{padding:15px}}
