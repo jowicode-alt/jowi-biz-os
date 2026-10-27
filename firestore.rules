@@ -259,7 +259,8 @@ service cloud.firestore {
    }
    match /attendance/{docId} {
     allow read: if inInstitution(id);
-    allow create: if (
+    // Only the authenticated student who owns the learner record can submit their own attendance.
+    allow create: if
       request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','deviceId','code','location','accuracyMeters','checkedAt'])
       && request.resource.data.sessionId is string && request.resource.data.studentId is string
       && request.resource.data.studentName is string && request.resource.data.studentNumber is string
@@ -284,20 +285,7 @@ service cloud.firestore {
         || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
           && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
             <= get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.radiusMeters))
-      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId))
-    ) || (
-      canTeach(id)
-      && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','markedBy','markedAt'])
-      && request.resource.data.sessionId is string && request.resource.data.studentId is string
-      && request.resource.data.studentName is string && request.resource.data.studentNumber is string
-      && request.resource.data.classId is string && request.resource.data.status == 'present'
-      && request.resource.data.markedBy == request.auth.uid && request.resource.data.markedAt == request.time
-      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId
-      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId
-    );
+      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId));
     allow update, delete: if false;
    }
    match /{document=**} { allow read, write: if false; }
