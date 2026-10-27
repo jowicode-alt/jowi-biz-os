@@ -247,7 +247,7 @@ service cloud.firestore {
        && request.resource.data.activeCode is string && request.resource.data.activeCode.matches('^[0-9]{6}$')
        && request.resource.data.codeUpdatedAt is number
        && request.resource.data.codeUpdatedAt >= resource.data.codeUpdatedAt + 20000
-       && request.resource.data.codeUpdatedAt <= request.time.toMillis() + 5000
+       && request.resource.data.codeUpdatedAt <= request.time.toMillis() + 60000
        && request.resource.data.codeVersion == resource.data.codeVersion + 1)
       ||
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
