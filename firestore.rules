@@ -241,7 +241,7 @@ service cloud.firestore {
    match /sessions/{docId} {
     allow read: if inInstitution(id);
     allow create: if validSessionCreate(id) && canManageClass(id, request.resource.data.classId);
-    allow update: if canTeach(id) && canManageClass(id, resource.data.classId) && (
+    allow update: if inInstitution(id) && canTeach(id) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
        && resource.data.status == 'active' && (resource.data.createdBy == request.auth.uid || memberRole(id) in ['owner','institution_admin','campus_admin'])
        && request.resource.data.activeCode is string && request.resource.data.activeCode.matches('^[0-9]{6}$')
@@ -251,7 +251,7 @@ service cloud.firestore {
        && request.resource.data.codeVersion == resource.data.codeVersion + 1)
       ||
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
-       && request.resource.data.status == 'closed' && resource.data.status == 'active'
+       && canManageClass(id, resource.data.classId) && request.resource.data.status == 'closed' && resource.data.status == 'active'
        && resource.data.createdBy == request.auth.uid && request.resource.data.closedBy == request.auth.uid
        && request.resource.data.closedAt is number)
     );
