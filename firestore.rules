@@ -274,7 +274,7 @@ service cloud.firestore {
       && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt > request.time.toMillis()
       && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId
       && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.activeCode == request.resource.data.code
-      && request.time.toMillis() - get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt <= 35000
+      && request.time.toMillis() - get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt <= 1860000
       && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid == request.auth.uid
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
