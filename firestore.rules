@@ -279,7 +279,7 @@ service cloud.firestore {
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.deviceId == request.resource.data.deviceId
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId
+      && classCampus(id, get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId) == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId
       && (!get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.requiresGps
         || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
           && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
