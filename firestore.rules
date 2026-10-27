@@ -48,6 +48,8 @@ service cloud.firestore {
     && request.resource.data.title is string
     && request.resource.data.title.size() > 0
     && request.resource.data.classId is string
+    && request.resource.data.campusId is string
+    && classCampus(id, request.resource.data.classId) == request.resource.data.campusId
     && request.resource.data.durationMinutes in [30,45,60,90,120]
     && request.resource.data.requiresGps is bool
     && (!request.resource.data.requiresGps || (request.resource.data.location is latlng && request.resource.data.radiusMeters is number && request.resource.data.radiusMeters >= 25 && request.resource.data.radiusMeters <= 500))
@@ -60,7 +62,7 @@ service cloud.firestore {
     && request.resource.data.activeCode.matches('^[0-9]{6}$')
     && request.resource.data.codeUpdatedAt == request.resource.data.openedAt
     && request.resource.data.codeVersion == 1
-    && request.resource.data.keys().hasOnly(['title','classId','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    && request.resource.data.keys().hasOnly(['title','campusId','classId','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
   }
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
@@ -143,7 +145,7 @@ service cloud.firestore {
       && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId))
       && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId)).data.campusId == request.resource.data.assignedCampusId
     ))
-    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt']);
+    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt']);
    allow update: if (
      signedIn() && request.auth.uid == resource.data.createdBy
      && resource.data.status in ['pending','email_failed']
@@ -153,7 +155,7 @@ service cloud.firestore {
      && request.resource.data.institutionId == resource.data.institutionId
      && request.resource.data.institutionCode == resource.data.institutionCode
      && canCreateMember(resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId',''))
-     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt'])
+     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt'])
    ) || (
      signedIn() && request.auth.token.email == resource.data.email
      && resource.data.status == 'pending'
@@ -203,7 +205,7 @@ service cloud.firestore {
    }
    match /campuses/{docId} {
     allow read: if inInstitution(id);
-    allow create, update: if canManageCampus(id, docId) && request.resource.data.keys().hasOnly(['name','city','timezone','createdAt','createdBy']);
+    allow create, update: if canManageCampus(id, docId) && request.resource.data.keys().hasOnly(['name','city','address','timezone','createdAt','createdBy']);
     allow delete: if false;
    }
    match /classes/{docId} {
