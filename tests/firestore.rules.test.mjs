@@ -43,9 +43,10 @@ try {
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
 
   const now = Date.now();
-  const validSession = { title: "Morning class", classId: "class-1", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: now, expiresAt: now + 45 * 60000, activeCode: "123456", codeUpdatedAt: now, codeVersion: 1 };
+  const validSession = { title: "Morning class", campusId: "campus-1", classId: "class-1", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: now, expiresAt: now + 45 * 60000, activeCode: "123456", codeUpdatedAt: now, codeVersion: 1 };
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), validSession));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-bad-code"), { ...validSession, activeCode: "123" }));
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-wrong-campus"), { ...validSession, campusId: "campus-2" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-extra-field"), { ...validSession, unapproved: true }));
   await assertFails(setDoc(doc(outsider, "institutions/inst-1/sessions/session-cross-tenant"), { ...validSession, createdBy: "outsider-1" }));
 
