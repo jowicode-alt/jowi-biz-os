@@ -45,6 +45,12 @@ P1 — before public rollout:
 - Complete a privacy impact assessment and controller/processor/vendor mapping.
 - Establish backups, deletion, incident response and audit review.
 
+## Remediation status — 2026-11-06
+
+- Attendance reads are restricted in branch `security/restrict-attendance-record-reads` and draft PR #4: students can read only their own record; campus admins and lecturers are restricted to their assigned campus; institution owners/admins retain institution-wide access. Firestore Emulator CI passed the cross-student and cross-campus regression tests in workflow run #23. This change is not merged or deployed; production rules remain unchanged.
+- The callable exports in `functions/index.js` remain inactive legacy code, not deployed security controls. The README now documents their schema and freshness-window mismatches; do not deploy them as-is.
+- Remaining launch blockers: GPS/device values are client-submitted and browser-generated codes are not tamper-resistant. No server-authoritative check-in is active. Do not describe attendance as spoof-proof or use it for high-stakes decisions. Privacy notice, retention, request handling and incident response are still required before live student data.
+
 ## Important limitation
 
 No application code, Firestore rules, Firebase configuration, production data, or deployment settings were changed during this audit. These findings need test-backed remediation in a separate change set.
