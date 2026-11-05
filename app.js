@@ -55,5 +55,6 @@ function wrapAsyncHandler(target,key,label){if(!target||typeof target[key]!=="fu
 $$("form").forEach(form=>wrapAsyncHandler(form,"onsubmit","Processing your request…"));
 ["#auth-form","#setup-form","#join-registration-form","#campus-form","#class-form","#student-form","#member-form","#session-form"].forEach(sel=>{const f=$(sel);if(f)wrapAsyncHandler(f,"onsubmit",sel==="#auth-form"?"Signing you in…":sel==="#setup-form"?"Creating your institution workspace…":"Saving your changes…")});
 ["#forgot","#export-pdf","#close-session"].forEach(sel=>{const b=$(sel);if(b)wrapAsyncHandler(b,"onclick",sel==="#forgot"?"Sending password reset…":sel==="#export-pdf"?"Preparing your report…":"Closing attendance session…")});
+const originalStart=start;start=async function(...args){const finish=beginLoading("Loading your institution workspace…");try{return await originalStart.apply(this,args)}finally{finish()}};
 const authLoadingFinish=beginLoading("Checking your sign-in…");
 const authLoadingWatch=setInterval(()=>{if($("#app-view")&&!$("#app-view").classList.contains("hidden")||$("#auth-view")&&!$("#auth-view").classList.contains("hidden")||$("#setup-view")&&!$("#setup-view").classList.contains("hidden")||$("#join-registration-view")&&!$("#join-registration-view").classList.contains("hidden")){authLoadingFinish();clearInterval(authLoadingWatch)}},250);
