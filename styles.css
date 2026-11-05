@@ -8,3 +8,69 @@ button:disabled{opacity:.62;cursor:wait}
 .session-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .session-actions button{white-space:nowrap}
 #active-session{width:100%}
+
+/* Login and registration viewport refinements */
+.auth{
+  width:min(100% - 32px, 480px);
+  max-width:480px;
+  min-height:calc(100svh - 68px);
+  margin:0 auto;
+  padding:clamp(22px,5vh,52px) 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.auth-card{
+  width:100%;
+  padding:clamp(22px,4vw,38px);
+  border-radius:18px;
+  box-shadow:0 18px 50px rgba(18,61,53,.09);
+}
+.auth-card h1{
+  margin:0 0 8px;
+  color:var(--deep);
+  font-size:clamp(25px,4vw,30px);
+  line-height:1.2;
+  letter-spacing:-.7px;
+}
+.auth-subtitle{margin:0!important;font-size:0!important;line-height:0!important}
+.auth-card form{gap:10px;margin-top:18px}
+.auth-card label{margin-top:5px}
+.auth-card input,.auth-card select{min-height:46px}
+.auth-card .primary{min-height:46px;font-size:13px}
+.auth-card #forgot{justify-self:center;padding:8px 12px;font-size:12px}
+.auth-links{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.auth-links .link{padding:7px 0;text-align:left}
+.auth-card .message{margin:2px 0}
+.setup{
+  width:min(100% - 40px,1180px);
+  min-height:calc(100svh - 68px);
+  align-items:start;
+  padding-top:clamp(22px,5vh,52px);
+  padding-bottom:32px;
+}
+.setup>.card{width:100%;max-width:560px}
+.setup input,.setup select{min-height:44px}
+@media(max-width:900px){
+  .auth{width:min(100% - 36px,480px);min-height:calc(100svh - 60px)}
+  .setup{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+}
+@media(max-width:680px){
+  .auth{width:calc(100% - 28px);min-height:calc(100svh - 60px);padding:20px 0;align-items:flex-start}
+  .auth-card{padding:22px 18px;border-radius:15px}
+  .auth-links{flex-direction:column;align-items:stretch;gap:4px}
+  .auth-links .link{text-align:center}
+  .setup{width:calc(100% - 26px);grid-template-columns:minmax(0,1fr);gap:14px;padding-top:18px}
+  .setup>.card{max-width:none}
+}
+@media(max-width:380px){
+  header{padding-inline:10px}
+  .brand{font-size:13px;gap:7px}
+  .mark{padding:8px;border-radius:8px}
+  .auth{width:calc(100% - 20px)}
+  .auth-card{padding:19px 15px}
+  .auth-card input,.auth-card select{min-height:44px;padding:10px}
+}
+@media(min-width:1200px){
+  .auth{max-width:460px}
+}
