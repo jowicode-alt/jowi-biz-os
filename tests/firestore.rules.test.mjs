@@ -30,10 +30,12 @@ try {
     await setDoc(doc(db, "institutions/inst-1/campuses/campus-1"), { name: "Main Campus", city: "Kampala", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/campuses/campus-2"), { name: "Other Campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/classes/class-1"), { name: "Class 1", code: "C1", campusId: "campus-1", createdAt: new Date(), createdBy: "owner-1" });
+    await setDoc(doc(db, "institutions/inst-1/classes/class-2"), { name: "Class 2", code: "C2", campusId: "campus-2", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "users/student-reader"), { uid: "student-reader", name: "Reader", email: "reader@example.test", institutionId: "inst-1", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/members/student-reader"), { uid: "student-reader", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/attendance/session-1_student-reader"), { sessionId: "session-1", studentId: "student-reader", classId: "class-1", status: "present" });
     await setDoc(doc(db, "institutions/inst-1/attendance/session-1_student-other"), { sessionId: "session-1", studentId: "student-other", classId: "class-1", status: "present" });
+    await setDoc(doc(db, "institutions/inst-1/attendance/session-2_student-other-campus"), { sessionId: "session-2", studentId: "student-other-campus", classId: "class-2", status: "present" });
   });
 
   await assertSucceeds(getDoc(doc(owner, "institutions/inst-1")));
@@ -45,7 +47,9 @@ try {
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/attendance/session-1_student-other")));
   await assertFails(getDocs(collection(studentReader, "institutions/inst-1/attendance")));
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-1_student-reader")));
+  await assertFails(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-2_student-other-campus")));
   await assertSucceeds(getDoc(doc(campusAdmin, "institutions/inst-1/attendance/session-1_student-reader")));
+  await assertFails(getDoc(doc(campusAdmin, "institutions/inst-1/attendance/session-2_student-other-campus")));
   await assertSucceeds(getDoc(doc(owner, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(getDoc(doc(outsider, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
