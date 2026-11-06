@@ -312,6 +312,56 @@ service cloud.firestore {
       && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId));
     allow update, delete: if false;
    }
+   // Academic structure for shared course units. These collections are additive;
+   // legacy classes and class-based attendance remain supported during migration.
+   match /academicYears/{docId} {
+    allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
+    allow create, update: if isInstitutionWideStaff(id)
+      && request.resource.data.keys().hasOnly(['name','startDate','endDate','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /semesters/{docId} {
+    allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
+    allow create, update: if isInstitutionWideStaff(id)
+      && request.resource.data.keys().hasOnly(['name','academicYearId','startDate','endDate','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /programmes/{docId} {
+    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
+    allow create, update: if isInstitutionWideStaff(id)
+      && request.resource.data.keys().hasOnly(['name','code','description','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /courseUnits/{docId} {
+    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
+    allow create, update: if isInstitutionWideStaff(id)
+      && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /teachingGroups/{docId} {
+    allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
+    allow create, update: if canManageCampus(id, request.resource.data.campusId)
+      && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /enrolments/{docId} {
+    allow get: if isInstitutionWideStaff(id)
+      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
+      || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid);
+    allow list: if isInstitutionWideStaff(id)
+      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
+    allow create, update: if canManageCampus(id, request.resource.data.campusId)
+      && request.resource.data.studentUid is string
+      && request.resource.data.courseUnitId is string
+      && request.resource.data.programmeId is string
+      && request.resource.data.academicYearId is string
+      && request.resource.data.semesterId is string
+      && request.resource.data.status in ['active','inactive']
+      && docId == request.resource.data.studentUid + '_' + request.resource.data.courseUnitId
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId;
+    allow delete: if false;
+   }
    match /{document=**} { allow read, write: if false; }
   }
   match /{document=**} { allow read, write: if false; }
