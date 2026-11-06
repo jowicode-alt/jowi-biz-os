@@ -154,7 +154,7 @@ service cloud.firestore {
       && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId))
       && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId)).data.campusId == request.resource.data.assignedCampusId
     ))
-    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt']);
+    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','createdBy','createdByRole','status','createdAt']);
    allow update: if (
      signedIn() && request.auth.uid == resource.data.createdBy
      && resource.data.status in ['pending','email_failed']
@@ -164,7 +164,7 @@ service cloud.firestore {
      && request.resource.data.institutionId == resource.data.institutionId
      && request.resource.data.institutionCode == resource.data.institutionCode
      && canCreateMember(resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId',''))
-     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt'])
+     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','createdBy','createdByRole','status','createdAt'])
    ) || (
      signedIn() && request.auth.token.email == resource.data.email
      && resource.data.status == 'pending'
@@ -329,7 +329,7 @@ service cloud.firestore {
    match /programmes/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionWideStaff(id)
-      && request.resource.data.keys().hasOnly(['name','code','description','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','code','description','durationYears','semestersPerYear','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /courseUnits/{docId} {
@@ -351,7 +351,7 @@ service cloud.firestore {
     allow list: if isInstitutionWideStaff(id)
       || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
       || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid && resource.data.status == 'active');
-    allow create, update: if ((canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId)) || (signedIn() && memberRole(id) == 'student' && request.resource.data.studentUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.status == 'accepted' && getAfter(invitePath(request.auth.token.email, id)).data.acceptedUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.courseUnitIds.hasAny([request.resource.data.courseUnitId]) && getAfter(invitePath(request.auth.token.email, id)).data.programmeId == request.resource.data.programmeId && getAfter(invitePath(request.auth.token.email, id)).data.academicYearId == request.resource.data.academicYearId && getAfter(invitePath(request.auth.token.email, id)).data.semesterId == request.resource.data.semesterId && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId))
+    allow create, update: if ((canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId)) || (signedIn() && request.resource.data.studentUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.status == 'accepted' && getAfter(invitePath(request.auth.token.email, id)).data.acceptedUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.courseUnitIds.hasAny([request.resource.data.courseUnitId]) && getAfter(invitePath(request.auth.token.email, id)).data.programmeId == request.resource.data.programmeId && getAfter(invitePath(request.auth.token.email, id)).data.academicYearId == request.resource.data.academicYearId && getAfter(invitePath(request.auth.token.email, id)).data.semesterId == request.resource.data.semesterId && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId))
       && request.resource.data.studentUid is string
       && request.resource.data.courseUnitId is string
       && request.resource.data.programmeId is string
