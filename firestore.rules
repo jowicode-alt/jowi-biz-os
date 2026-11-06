@@ -154,7 +154,7 @@ service cloud.firestore {
       && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId))
       && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId)).data.campusId == request.resource.data.assignedCampusId
     ))
-    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','createdBy','createdByRole','status','createdAt']);
+    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','enrollmentYear','createdBy','createdByRole','status','createdAt']);
    allow update: if (
      signedIn() && request.auth.uid == resource.data.createdBy
      && resource.data.status in ['pending','email_failed']
@@ -245,7 +245,7 @@ service cloud.firestore {
       && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId
       && getAfter(invitePath(request.auth.token.email, id)).data.studentNumber == request.resource.data.studentNumber
       && request.resource.data.createdBy == get(invitePath(request.auth.token.email, id)).data.createdBy
-      && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
+      && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','enrollmentYear','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
     );
     allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
     allow delete: if false;
