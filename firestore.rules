@@ -58,7 +58,7 @@ service cloud.firestore {
     && request.resource.data.title is string
     && request.resource.data.title.size() > 0
     && request.resource.data.campusId is string
-    && ((request.resource.data.courseUnitId is string && request.resource.data.academicYearId is string && request.resource.data.semesterId is string && request.resource.data.teachingGroupId is string && request.resource.data.sessionGroupMode in ['combined','separate'] && (request.resource.data.sessionGroupMode != 'separate' || request.resource.data.teachingGroupId.size() > 0) && (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))) || (request.resource.data.classId is string && classCampus(id, request.resource.data.classId) == request.resource.data.campusId))
+    && ((request.resource.data.courseUnitId is string && exists(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)) && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.status == 'active' && request.resource.data.academicYearId is string && exists(/databases/$(database)/documents/institutions/$(id)/academicYears/$(request.resource.data.academicYearId)) && get(/databases/$(database)/documents/institutions/$(id)/academicYears/$(request.resource.data.academicYearId)).data.status == 'active' && request.resource.data.semesterId is string && exists(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)) && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.status == 'active' && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.academicYearId == request.resource.data.academicYearId && request.resource.data.teachingGroupId is string && request.resource.data.sessionGroupMode in ['combined','separate'] && (request.resource.data.sessionGroupMode != 'separate' || request.resource.data.teachingGroupId.size() > 0) && (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))) || (request.resource.data.classId is string && classCampus(id, request.resource.data.classId) == request.resource.data.campusId))
     && request.resource.data.durationMinutes in [30,45,60,90,120]
     && request.resource.data.requiresGps is bool
     && (!request.resource.data.requiresGps || (request.resource.data.location is latlng && request.resource.data.radiusMeters is number && request.resource.data.radiusMeters >= 25 && request.resource.data.radiusMeters <= 500))
@@ -358,9 +358,22 @@ service cloud.firestore {
       && request.resource.data.academicYearId is string
       && request.resource.data.semesterId is string
       && request.resource.data.status in ['active','inactive']
+      && request.resource.data.teachingGroupId is string
       && docId == request.resource.data.studentUid + '_' + request.resource.data.courseUnitId
       && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId;
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.status == 'active'
+      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId
+      && exists(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId))
+      && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.status == 'active'
+      && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.programmeIds is list
+      && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.programmeIds.hasAny([request.resource.data.programmeId])
+      && exists(/databases/$(database)/documents/institutions/$(id)/programmes/$(request.resource.data.programmeId))
+      && get(/databases/$(database)/documents/institutions/$(id)/programmes/$(request.resource.data.programmeId)).data.status == 'active'
+      && exists(/databases/$(database)/documents/institutions/$(id)/academicYears/$(request.resource.data.academicYearId))
+      && get(/databases/$(database)/documents/institutions/$(id)/academicYears/$(request.resource.data.academicYearId)).data.status == 'active'
+      && exists(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId))
+      && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.status == 'active'
+      && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.academicYearId == request.resource.data.academicYearId;
     allow delete: if false;
    }
    match /{document=**} { allow read, write: if false; }
