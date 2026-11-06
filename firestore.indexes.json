@@ -19,6 +19,30 @@
       ]
     },
     {
+      "collectionGroup": "enrolments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "studentUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "attendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sessionId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "sessions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -43,31 +67,41 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "teachingGroupId",
+          "fieldPath": "sessionGroupMode",
           "order": "ASCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "enrolments",
+      "collectionGroup": "sessions",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "studentUid",
-          "order": "ASCENDING"
-        },
         {
           "fieldPath": "status",
           "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "attendance",
-      "queryScope": "COLLECTION",
-      "fields": [
+        },
         {
-          "fieldPath": "sessionId",
+          "fieldPath": "courseUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "campusId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "academicYearId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "semesterId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sessionGroupMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "teachingGroupId",
           "order": "ASCENDING"
         }
       ]
