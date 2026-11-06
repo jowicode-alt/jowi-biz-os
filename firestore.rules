@@ -264,7 +264,7 @@ service cloud.firestore {
        && request.resource.data.codeVersion == resource.data.codeVersion + 1)
       ||
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
-       && canManageClass(id, resource.data.classId) && request.resource.data.status == 'closed' && resource.data.status == 'active'
+       && ((resource.data.keys().hasAny(['courseUnitId']) && (canManageCampus(id, resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == resource.data.campusId))) || (!resource.data.keys().hasAny(['courseUnitId']) && canManageClass(id, resource.data.classId))) && request.resource.data.status == 'closed' && resource.data.status == 'active'
        && resource.data.createdBy == request.auth.uid && request.resource.data.closedBy == request.auth.uid
        && request.resource.data.closedAt is number)
     );
