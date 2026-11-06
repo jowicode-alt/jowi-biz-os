@@ -35,6 +35,7 @@ try {
     await setDoc(doc(db, "institutions/inst-1/members/student-reader"), { uid: "student-reader", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-reader"), { authUid: "student-reader", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-reader" });
     await setDoc(doc(db, "institutions/inst-1/students/student-other"), { authUid: "student-other", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-other" });
+    await setDoc(doc(db, "institutions/inst-1/students/student-other-campus"), { authUid: "student-other-campus", classId: "class-2", campusId: "campus-2", status: "active", deviceId: "device-other-campus" });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-allowed"), { status: "active", classId: "class-1", campusId: "campus-1", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-denied"), { status: "active", classId: "class-2", campusId: "campus-2", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-closed"), { status: "closed", classId: "class-1", campusId: "campus-1", expiresAt: Date.now() + 60000 });
@@ -66,6 +67,24 @@ try {
   assert.equal(learnerSessions.size, 1);
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-2_student-other-campus")));
+  // Campus staff can read only their assigned campus documents and constrained query results.
+  await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/campuses/campus-1")));
+  await assertFails(getDoc(doc(lecturer, "institutions/inst-1/campuses/campus-2")));
+  await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/classes/class-1")));
+  await assertFails(getDoc(doc(lecturer, "institutions/inst-1/classes/class-2")));
+  await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/students/student-reader")));
+  await assertFails(getDoc(doc(lecturer, "institutions/inst-1/students/student-other-campus")));
+  await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/sessions/session-student-allowed")));
+  await assertFails(getDoc(doc(lecturer, "institutions/inst-1/sessions/session-student-denied")));
+  await assertSucceeds(getDocs(query(collection(lecturer, "institutions/inst-1/classes"), where("campusId", "==", "campus-1"))));
+  await assertFails(getDocs(query(collection(lecturer, "institutions/inst-1/classes"), where("campusId", "==", "campus-2"))));
+  await assertSucceeds(getDocs(query(collection(lecturer, "institutions/inst-1/students"), where("campusId", "==", "campus-1"))));
+  await assertFails(getDocs(query(collection(lecturer, "institutions/inst-1/students"), where("campusId", "==", "campus-2"))));
+  await assertSucceeds(getDocs(query(collection(lecturer, "institutions/inst-1/sessions"), where("campusId", "==", "campus-1"))));
+  await assertFails(getDocs(query(collection(lecturer, "institutions/inst-1/sessions"), where("campusId", "==", "campus-2"))));
+  await assertSucceeds(getDocs(collection(owner, "institutions/inst-1/classes")));
+  await assertSucceeds(getDocs(collection(owner, "institutions/inst-1/students")));
+  await assertSucceeds(getDocs(collection(owner, "institutions/inst-1/sessions")));
   await assertSucceeds(getDoc(doc(campusAdmin, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(getDoc(doc(campusAdmin, "institutions/inst-1/attendance/session-2_student-other-campus")));
   await assertSucceeds(getDoc(doc(owner, "institutions/inst-1/attendance/session-1_student-reader")));
