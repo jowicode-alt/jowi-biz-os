@@ -253,7 +253,7 @@ service cloud.firestore {
    match /sessions/{docId} {
     allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadSession(id);
     allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id)) || canStudentReadSession(id);
-    allow create: if validSessionCreate(id) && ((request.resource.data.keys().hasAny(['courseUnitId']) && resource.data.courseUnitId is string) || canManageClass(id, request.resource.data.classId));
+    allow create: if validSessionCreate(id) && ((request.resource.data.courseUnitId is string) || canManageClass(id, request.resource.data.classId));
     allow update: if inInstitution(id) && canTeach(id) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
        && resource.data.status == 'active' && (resource.data.createdBy == request.auth.uid || memberRole(id) in ['owner','institution_admin','campus_admin'])
@@ -353,7 +353,7 @@ service cloud.firestore {
       || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid && resource.data.status == 'active');
     allow create, update: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
       && request.resource.data.studentUid is string
-      && request.resource.data.keys().hasAny(['courseUnitId']) && resource.data.courseUnitId is string
+      && request.resource.data.courseUnitId is string
       && request.resource.data.programmeId is string
       && request.resource.data.academicYearId is string
       && request.resource.data.semesterId is string
