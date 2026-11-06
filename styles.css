@@ -93,7 +93,7 @@ header{position:sticky;top:0;z-index:1200;gap:12px}
 .profile-dropdown>button:hover{background:#eef6f0}
 .profile-dropdown .signout-item{color:#a23d2f}
 .app{display:block;min-height:calc(100vh - 68px)}
-.sidebar{position:fixed;z-index:1250;left:0;top:68px;bottom:0;width:min(290px,86vw);overflow-y:auto;transform:translateX(-105%);transition:transform .24s ease;box-shadow:12px 0 35px #102d2418;border-right:1px solid var(--line)}
+.sidebar{display:flex;position:fixed;z-index:1250;left:0;top:68px;bottom:0;width:min(290px,86vw);overflow-y:auto;transform:translateX(-105%);transition:transform .24s ease;box-shadow:12px 0 35px #102d2418;border-right:1px solid var(--line)}
 .sidebar.is-open{transform:translateX(0)}
 .sidebar-backdrop{position:fixed;inset:68px 0 0;background:rgba(12,31,26,.35);z-index:1240}
 .workspace{max-width:1600px}
