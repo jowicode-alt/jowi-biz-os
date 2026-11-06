@@ -13,6 +13,7 @@ const outsider = env.authenticatedContext("outsider-1").firestore();
 const unauth = env.unauthenticatedContext().firestore();
 const invitedStudent = env.authenticatedContext("student-new", { email: "student-new@example.test" }).firestore();
 const studentReader = env.authenticatedContext("student-reader", { email: "reader@example.test" }).firestore();
+const studentOtherReader = env.authenticatedContext("student-other", { email: "other@example.test" }).firestore();
 
 try {
   await env.withSecurityRulesDisabled(async ctx => {
@@ -35,7 +36,19 @@ try {
     await setDoc(doc(db, "institutions/inst-1/members/student-reader"), { uid: "student-reader", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-reader"), { authUid: "student-reader", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-reader" });
     await setDoc(doc(db, "institutions/inst-1/students/student-other"), { authUid: "student-other", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-other" });
+    await setDoc(doc(db, "users/student-other"), { uid: "student-other", name: "Other", email: "other@example.test", institutionId: "inst-1", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/members/student-other"), { uid: "student-other", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/enrolments/student-other_cu-comm"), { studentUid: "student-other", courseUnitId: "cu-comm", programmeId: "programme-business", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-other-campus"), { authUid: "student-other-campus", classId: "class-2", campusId: "campus-2", status: "active", deviceId: "device-other-campus" });
+    await setDoc(doc(db, "institutions/inst-1/courseUnits/cu-comm"), { name: "Communication Skills", code: "COM101", programmeIds: ["programme-it", "programme-business"], status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/programmes/programme-it"), { name: "Information Technology", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/programmes/programme-business"), { name: "Business", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/academicYears/year-2026"), { name: "2026", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/semesters/semester-1"), { name: "Semester 1", academicYearId: "year-2026", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/semesters/semester-2"), { name: "Semester 2", academicYearId: "year-2026", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/enrolments/student-reader_cu-comm"), { studentUid: "student-reader", courseUnitId: "cu-comm", programmeId: "programme-it", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/sessions/session-shared-course-unit"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
+    await setDoc(doc(db, "institutions/inst-1/sessions/session-course-unit-wrong-semester"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-2", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-allowed"), { status: "active", classId: "class-1", campusId: "campus-1", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-denied"), { status: "active", classId: "class-2", campusId: "campus-2", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-closed"), { status: "closed", classId: "class-1", campusId: "campus-1", expiresAt: Date.now() + 60000 });
@@ -61,6 +74,15 @@ try {
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/classes/class-1")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/classes/class-2")));
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-allowed")));
+  // Shared course-unit sessions are readable through the student's active enrolment context.
+  await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/enrolments/student-reader_cu-comm")));
+  await assertSucceeds(getDoc(doc(studentOtherReader, "institutions/inst-1/sessions/session-shared-course-unit")));
+  const sharedSessionNow = Date.now();
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-course-unit-created"), { title: "Shared Communication Skills", campusId: "campus-1", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", sessionGroupMode: "combined", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: sharedSessionNow, expiresAt: sharedSessionNow + 45 * 60000, activeCode: "654321", codeUpdatedAt: sharedSessionNow, codeVersion: 1 }));
+  await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-shared-course-unit")));
+  await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-semester")));
+  const ownEnrolments = await getDocs(query(collection(studentReader, "institutions/inst-1/enrolments"), where("studentUid", "==", "student-reader"), where("status", "==", "active")));
+  assert.equal(ownEnrolments.size, 1);
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-denied")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-closed")));
   const learnerSessions = await getDocs(query(collection(studentReader, "institutions/inst-1/sessions"), where("status", "==", "active"), where("classId", "==", "class-1"), where("campusId", "==", "campus-1")));
