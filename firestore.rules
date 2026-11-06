@@ -58,7 +58,7 @@ service cloud.firestore {
     && request.resource.data.title is string
     && request.resource.data.title.size() > 0
     && request.resource.data.campusId is string
-    && ((request.resource.data.keys().hasAny(['courseUnitId']) && resource.data.courseUnitId is string && request.resource.data.academicYearId is string && request.resource.data.semesterId is string && request.resource.data.teachingGroupId is string && request.resource.data.sessionGroupMode in ['combined','separate'] && (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))) || (request.resource.data.classId is string && classCampus(id, request.resource.data.classId) == request.resource.data.campusId))
+    && ((request.resource.data.courseUnitId is string && request.resource.data.academicYearId is string && request.resource.data.semesterId is string && request.resource.data.teachingGroupId is string && request.resource.data.sessionGroupMode in ['combined','separate'] && (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))) || (request.resource.data.classId is string && classCampus(id, request.resource.data.classId) == request.resource.data.campusId))
     && request.resource.data.durationMinutes in [30,45,60,90,120]
     && request.resource.data.requiresGps is bool
     && (!request.resource.data.requiresGps || (request.resource.data.location is latlng && request.resource.data.radiusMeters is number && request.resource.data.radiusMeters >= 25 && request.resource.data.radiusMeters <= 500))
@@ -281,7 +281,7 @@ service cloud.firestore {
    allow get: if canReadAttendanceRecord(id);
    allow list: if inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']
     && (memberRole(id) in ['owner','institution_admin']
-      || assignedCampus(id) == classCampus(id, resource.data.classId)
+      || (resource.data.classId is string && assignedCampus(id) == classCampus(id, resource.data.classId))
       || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id)));
     // Only the authenticated student who owns the learner record can submit their own attendance.
     allow create: if
