@@ -274,15 +274,15 @@ service cloud.firestore {
     function canReadAttendanceRecord(id) {
     return inInstitution(id) && (
      memberRole(id) in ['owner','institution_admin']
-     || (memberRole(id) in ['campus_admin','lecturer']
-       && assignedCampus(id) == classCampus(id, resource.data.classId))
+     || (memberRole(id) in ['campus_admin','lecturer'] && (assignedCampus(id) == classCampus(id, resource.data.classId) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
    }
    allow get: if canReadAttendanceRecord(id);
    allow list: if inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']
     && (memberRole(id) in ['owner','institution_admin']
-      || assignedCampus(id) == classCampus(id, resource.data.classId));
+      || assignedCampus(id) == classCampus(id, resource.data.classId)
+      || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id)));
     // Only the authenticated student who owns the learner record can submit their own attendance.
     allow create: if
       request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
