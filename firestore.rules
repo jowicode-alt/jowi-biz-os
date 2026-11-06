@@ -6,6 +6,15 @@ service cloud.firestore {
   function hasProfile() { return signedIn() && exists(userPath(request.auth.uid)); }
   function profile() { return get(userPath(request.auth.uid)).data; }
   function memberPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/members/$(uid); }
+  function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
+  function hasOwnStudent(id) { return signedIn() && exists(studentPath(id, request.auth.uid)); }
+  function ownStudent(id) { return get(studentPath(id, request.auth.uid)).data; }
+  function isInstitutionStaff(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']; }
+  function isInstitutionWideStaff(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
+  function canStaffReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && assignedCampus(id) == campusId; }
+  function canStudentReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).campusId == campusId; }
+  function canStudentReadClass(id, classId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).classId == classId; }
+  function canStudentReadSession(id) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && resource.data.status == 'active' && resource.data.classId == ownStudent(id).classId && resource.data.campusId == ownStudent(id).campusId; }
   function inInstitution(id) { return hasProfile() && profile().institutionId == id && exists(memberPath(id, request.auth.uid)); }
   function memberRole(id) { return get(memberPath(id, request.auth.uid)).data.role; }
   function canManage(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin']; }
@@ -204,17 +213,20 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /campuses/{docId} {
-    allow read: if inInstitution(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, docId) || canStudentReadCampus(id, docId);
+    allow list: if isInstitutionWideStaff(id);
     allow create, update: if canManageCampus(id, docId) && request.resource.data.keys().hasOnly(['name','city','address','timezone','createdAt','createdBy']);
     allow delete: if false;
    }
    match /classes/{docId} {
-    allow read: if inInstitution(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadClass(id, docId);
+    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
     allow create, update: if canManageCampus(id, request.resource.data.campusId) && request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);
     allow delete: if false;
    }
    match /students/{docId} {
-    allow read: if inInstitution(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'student' && request.auth.uid == docId);
+    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
     allow create: if (
       canManageClass(id, request.resource.data.classId)
       && request.resource.data.keys().hasOnly(['name','studentNumber','classId','authUid','deviceId','status','createdAt','createdBy'])
@@ -239,7 +251,8 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /sessions/{docId} {
-    allow read: if inInstitution(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadSession(id);
+    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id)) || canStudentReadSession(id);
     allow create: if validSessionCreate(id) && canManageClass(id, request.resource.data.classId);
     allow update: if inInstitution(id) && canTeach(id) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
@@ -258,7 +271,18 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /attendance/{docId} {
-    allow read: if inInstitution(id);
+    function canReadAttendanceRecord(id) {
+    return inInstitution(id) && (
+     memberRole(id) in ['owner','institution_admin']
+     || (memberRole(id) in ['campus_admin','lecturer']
+       && assignedCampus(id) == classCampus(id, resource.data.classId))
+     || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
+    );
+   }
+   allow get: if canReadAttendanceRecord(id);
+   allow list: if inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']
+    && (memberRole(id) in ['owner','institution_admin']
+      || assignedCampus(id) == classCampus(id, resource.data.classId));
     // Only the authenticated student who owns the learner record can submit their own attendance.
     allow create: if
       request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','deviceId','code','location','accuracyMeters','checkedAt'])

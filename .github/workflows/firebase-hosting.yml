@@ -1,0 +1,32 @@
+name: Deploy InterCampus Hosting
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy_hosting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+      - name: Deploy Hosting only
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::Add the FIREBASE_TOKEN repository secret before deploying."
+            exit 1
+          fi
+          firebase deploy --only hosting --project jowi-biz-os --non-interactive
