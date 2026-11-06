@@ -274,7 +274,7 @@ service cloud.firestore {
     function canReadAttendanceRecord(id) {
     return inInstitution(id) && (
      memberRole(id) in ['owner','institution_admin']
-     || (memberRole(id) in ['campus_admin','lecturer'] && (assignedCampus(id) == classCampus(id, resource.data.classId) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
+     || (memberRole(id) in ['campus_admin','lecturer'] && ((resource.data.classId is string && assignedCampus(id) == classCampus(id, resource.data.classId)) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
    }
