@@ -323,7 +323,7 @@ service cloud.firestore {
    match /semesters/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionWideStaff(id)
-      && request.resource.data.keys().hasOnly(['name','academicYearId','startDate','endDate','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','academicYearId','startDate','endDate','durationMonths','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /programmes/{docId} {
@@ -361,9 +361,9 @@ service cloud.firestore {
       && request.resource.data.teachingGroupId is string
       && request.resource.data.get('studyYear','') is string
       && docId == request.resource.data.studentUid + '_' + request.resource.data.courseUnitId
-      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId
+      && existsAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
+      && getAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.status == 'active'
+      && getAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId
       && exists(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId))
       && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.status == 'active'
       && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.programmeIds is list
