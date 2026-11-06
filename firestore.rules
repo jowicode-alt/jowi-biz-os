@@ -14,7 +14,8 @@ service cloud.firestore {
   function canStaffReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && assignedCampus(id) == campusId; }
   function canStudentReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).campusId == campusId; }
   function canStudentReadClass(id, classId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).classId == classId; }
-  function canStudentReadSession(id) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && resource.data.status == 'active' && resource.data.classId == ownStudent(id).classId && resource.data.campusId == ownStudent(id).campusId; }
+  function enrolmentPath(id, uid, courseUnitId) { return /databases/$(database)/documents/institutions/$(id)/enrolments/$(uid + '_' + courseUnitId); }
+  function canStudentReadSession(id) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && resource.data.status == 'active' && ((resource.data.courseUnitId is string && exists(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)) && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.status == 'active' && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.campusId == resource.data.campusId && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.academicYearId == resource.data.academicYearId && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.semesterId == resource.data.semesterId && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.teachingGroupId == resource.data.teachingGroupId) || (resource.data.courseUnitId == null && resource.data.classId == ownStudent(id).classId && resource.data.campusId == ownStudent(id).campusId)); }
   function inInstitution(id) { return hasProfile() && profile().institutionId == id && exists(memberPath(id, request.auth.uid)); }
   function memberRole(id) { return get(memberPath(id, request.auth.uid)).data.role; }
   function canManage(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin']; }
@@ -56,9 +57,8 @@ service cloud.firestore {
     && request.resource.data.status == 'active'
     && request.resource.data.title is string
     && request.resource.data.title.size() > 0
-    && request.resource.data.classId is string
     && request.resource.data.campusId is string
-    && classCampus(id, request.resource.data.classId) == request.resource.data.campusId
+    && ((request.resource.data.courseUnitId is string && request.resource.data.academicYearId is string && request.resource.data.semesterId is string && request.resource.data.teachingGroupId is string && request.resource.data.sessionGroupMode in ['combined','separate'] && (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))) || (request.resource.data.classId is string && classCampus(id, request.resource.data.classId) == request.resource.data.campusId))
     && request.resource.data.durationMinutes in [30,45,60,90,120]
     && request.resource.data.requiresGps is bool
     && (!request.resource.data.requiresGps || (request.resource.data.location is latlng && request.resource.data.radiusMeters is number && request.resource.data.radiusMeters >= 25 && request.resource.data.radiusMeters <= 500))
@@ -71,7 +71,7 @@ service cloud.firestore {
     && request.resource.data.activeCode.matches('^[0-9]{6}$')
     && request.resource.data.codeUpdatedAt == request.resource.data.openedAt
     && request.resource.data.codeVersion == 1
-    && request.resource.data.keys().hasOnly(['title','campusId','classId','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    && request.resource.data.keys().hasOnly(['title','campusId','classId','courseUnitId','academicYearId','semesterId','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
   }
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
@@ -253,7 +253,7 @@ service cloud.firestore {
    match /sessions/{docId} {
     allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadSession(id);
     allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id)) || canStudentReadSession(id);
-    allow create: if validSessionCreate(id) && canManageClass(id, request.resource.data.classId);
+    allow create: if validSessionCreate(id) && ((request.resource.data.courseUnitId is string) || canManageClass(id, request.resource.data.classId));
     allow update: if inInstitution(id) && canTeach(id) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
        && resource.data.status == 'active' && (resource.data.createdBy == request.auth.uid || memberRole(id) in ['owner','institution_admin','campus_admin'])
@@ -285,7 +285,7 @@ service cloud.firestore {
       || assignedCampus(id) == classCampus(id, resource.data.classId));
     // Only the authenticated student who owns the learner record can submit their own attendance.
     allow create: if
-      request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+      request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
       && request.resource.data.sessionId is string && request.resource.data.studentId is string
       && request.resource.data.studentName is string && request.resource.data.studentNumber is string
       && request.resource.data.classId is string && request.resource.data.status == 'present'
@@ -296,15 +296,15 @@ service cloud.firestore {
       && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
       && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
       && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt > request.time.toMillis()
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId
+      && ((get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId is string && request.resource.data.courseUnitId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId && exists(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)) && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.status == 'active' && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.programmeId == request.resource.data.programmeId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.academicYearId == request.resource.data.academicYearId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.semesterId == request.resource.data.semesterId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.teachingGroupId == request.resource.data.teachingGroupId) || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId == null && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId))
       && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.activeCode == request.resource.data.code
       && request.time.toMillis() - get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt <= 1860000
       && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid == request.auth.uid
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
       && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.deviceId == request.resource.data.deviceId
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId
-      && classCampus(id, get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId) == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId
+      && (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId is string || get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId)
+      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId
       && (!get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.requiresGps
         || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
           && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
@@ -349,7 +349,8 @@ service cloud.firestore {
       || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
       || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid);
     allow list: if isInstitutionWideStaff(id)
-      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
+      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
+      || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid && resource.data.status == 'active');
     allow create, update: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
       && request.resource.data.studentUid is string
       && request.resource.data.courseUnitId is string
