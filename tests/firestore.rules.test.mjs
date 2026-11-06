@@ -40,6 +40,12 @@ try {
     await setDoc(doc(db, "institutions/inst-1/members/student-other"), { uid: "student-other", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-other_cu-comm"), { studentUid: "student-other", courseUnitId: "cu-comm", programmeId: "programme-business", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-other-campus"), { authUid: "student-other-campus", classId: "class-2", campusId: "campus-2", status: "active", deviceId: "device-other-campus" });
+    await setDoc(doc(db, "institutions/inst-1/courseUnits/cu-comm"), { name: "Communication Skills", code: "COM101", programmeIds: ["programme-it", "programme-business"], status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/programmes/programme-it"), { name: "Information Technology", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/programmes/programme-business"), { name: "Business", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/academicYears/year-2026"), { name: "2026", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/semesters/semester-1"), { name: "Semester 1", academicYearId: "year-2026", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/semesters/semester-2"), { name: "Semester 2", academicYearId: "year-2026", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-reader_cu-comm"), { studentUid: "student-reader", courseUnitId: "cu-comm", programmeId: "programme-it", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-shared-course-unit"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-course-unit-wrong-semester"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-2", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
