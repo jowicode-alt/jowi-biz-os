@@ -10,6 +10,8 @@ service cloud.firestore {
   function hasOwnStudent(id) { return signedIn() && exists(studentPath(id, request.auth.uid)); }
   function ownStudent(id) { return get(studentPath(id, request.auth.uid)).data; }
   function isInstitutionStaff(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']; }
+  function isInstitutionWideStaff(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
+  function canStaffReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && assignedCampus(id) == campusId; }
   function canStudentReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).campusId == campusId; }
   function canStudentReadClass(id, classId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).classId == classId; }
   function canStudentReadSession(id) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && resource.data.status == 'active' && resource.data.classId == ownStudent(id).classId && resource.data.campusId == ownStudent(id).campusId; }
@@ -211,20 +213,20 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /campuses/{docId} {
-    allow get: if isInstitutionStaff(id) || canStudentReadCampus(id, docId);
-    allow list: if isInstitutionStaff(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, docId) || canStudentReadCampus(id, docId);
+    allow list: if isInstitutionWideStaff(id);
     allow create, update: if canManageCampus(id, docId) && request.resource.data.keys().hasOnly(['name','city','address','timezone','createdAt','createdBy']);
     allow delete: if false;
    }
    match /classes/{docId} {
-    allow get: if isInstitutionStaff(id) || canStudentReadClass(id, docId);
-    allow list: if isInstitutionStaff(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadClass(id, docId);
+    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
     allow create, update: if canManageCampus(id, request.resource.data.campusId) && request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);
     allow delete: if false;
    }
    match /students/{docId} {
-    allow get: if isInstitutionStaff(id) || (inInstitution(id) && memberRole(id) == 'student' && request.auth.uid == docId);
-    allow list: if isInstitutionStaff(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'student' && request.auth.uid == docId);
+    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
     allow create: if (
       canManageClass(id, request.resource.data.classId)
       && request.resource.data.keys().hasOnly(['name','studentNumber','classId','authUid','deviceId','status','createdAt','createdBy'])
@@ -249,8 +251,8 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /sessions/{docId} {
-    allow get: if isInstitutionStaff(id) || canStudentReadSession(id);
-    allow list: if isInstitutionStaff(id) || canStudentReadSession(id);
+    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadSession(id);
+    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id)) || canStudentReadSession(id);
     allow create: if validSessionCreate(id) && canManageClass(id, request.resource.data.classId);
     allow update: if inInstitution(id) && canTeach(id) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
