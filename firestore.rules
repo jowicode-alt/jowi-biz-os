@@ -355,8 +355,8 @@ service cloud.firestore {
     allow create: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
       && request.resource.data.studentUid is string
       && request.resource.data.courseUnitId is string
-      && request.resource.data.status == 'active'
-      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','updatedAt','updatedBy','id','archivedAt','archivedBy','archiveReason']);
+      && request.resource.data.status in ['active','inactive']
+      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','updatedAt','updatedBy','id','archivedAt','archivedBy','archiveReason','endedAt','endedBy']);
     allow update, delete: if false;
    }
    match /enrolments/{docId} {
