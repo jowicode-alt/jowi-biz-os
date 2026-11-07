@@ -68,6 +68,7 @@ try {
   await assertFails(getDocs(collection(outsider, "institutions/inst-1/students")));
   await assertFails(setDoc(doc(outsider, "institutions/inst-1/classes/cross-tenant-write"), { name: "Cross tenant", code: "X1", campusId: "campus-1", createdAt: new Date(), createdBy: "outsider-1" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/attendance/forged"), { studentId: "x", present: true }));
+  await assertFails(updateDoc(doc(owner, "users/owner-1"), { email: "forged@example.test" }));
   // Learners may read only their own attendance; staff are limited by role and assigned campus.
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/attendance/session-1_student-other")));
