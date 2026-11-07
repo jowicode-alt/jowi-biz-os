@@ -155,6 +155,20 @@ try {
   await assertSucceeds(updateDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-owned-close-test"), { status: "closed", closedAt: Date.now(), closedBy: "lecturer-1" }));
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
   await assertFails(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { title: "Tampered title", status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
+  // Expired sessions: only the original session owner may finalize eligible absent records.
+  const expiredAt = Date.now() - 5000;
+  const expiredSession = { ...validSession, status: "active", createdBy: "owner-1", openedAt: expiredAt - 45 * 60000, expiresAt: expiredAt, activeCode: "909090" };
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-expired-absence"), expiredSession));
+  const classAbsence = { sessionId: "session-expired-absence", studentId: "student-reader", studentName: "Reader", studentNumber: "S-READ", classId: "class-1", status: "absent", finalizedBy: "owner-1", finalizedAt: serverTimestamp() };
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/attendance/session-expired-absence_student-reader"), classAbsence));
+  await assertFails(setDoc(doc(lecturer, "institutions/inst-1/attendance/session-expired-absence_student-other"), { ...classAbsence, studentId: "student-other", finalizedBy: "lecturer-1" }));
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/attendance/session-expired-absence_student-other-campus"), { ...classAbsence, studentId: "student-other-campus", finalizedBy: "owner-1" }));
+
+  const expiredUnitSession = { ...expiredSession, courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", sessionGroupMode: "combined" };
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-expired-unit-absence"), expiredUnitSession));
+  const unitAbsence = { sessionId: "session-expired-unit-absence", studentId: "student-reader", studentName: "Reader", studentNumber: "S-READ", classId: "class-1", courseUnitId: "cu-comm", programmeId: "programme-it", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", enrolmentId: "student-reader_cu-comm", status: "absent", finalizedBy: "owner-1", finalizedAt: serverTimestamp() };
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/attendance/session-expired-unit-absence_student-reader"), unitAbsence));
+
   // Promote the lecturer only after verifying campus-scoped lecturer permissions.
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
 
