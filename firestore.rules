@@ -307,20 +307,17 @@ service cloud.firestore {
    }
    match /attendance/{docId} {
     function validAbsentEnrolment(id, studentId, courseUnitId, session) {
-     let path = enrolmentPath(id, studentId, courseUnitId);
-     return exists(path)
-      && get(path).data.status == 'active'
-      && get(path).data.campusId == session.campusId
-      && get(path).data.academicYearId == session.academicYearId
-      && get(path).data.semesterId == session.semesterId
+     return exists(enrolmentPath(id, studentId, courseUnitId))
+      && get(enrolmentPath(id, studentId, courseUnitId)).data.status == 'active'
+      && get(enrolmentPath(id, studentId, courseUnitId)).data.campusId == session.campusId
+      && get(enrolmentPath(id, studentId, courseUnitId)).data.academicYearId == session.academicYearId
+      && get(enrolmentPath(id, studentId, courseUnitId)).data.semesterId == session.semesterId
       && (session.sessionGroupMode == 'combined'
-       || get(path).data.teachingGroupId == session.teachingGroupId);
+       || get(enrolmentPath(id, studentId, courseUnitId)).data.teachingGroupId == session.teachingGroupId);
     }
     function validAbsentAttendance(id, docId) {
-     let sessionPath = /databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId);
-     let studentPath = /databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId);
-     let session = get(sessionPath).data;
-     let student = get(studentPath).data;
+     let session = get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data;
+     let student = get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data;
      return signedIn()
       && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','finalizedBy','finalizedAt'])
       && request.resource.data.sessionId is string
@@ -332,11 +329,11 @@ service cloud.firestore {
       && request.resource.data.finalizedBy == request.auth.uid
       && request.resource.data.finalizedAt == request.time
       && docId == request.resource.data.sessionId + '_' + request.resource.data.studentId
-      && exists(sessionPath)
+      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
       && session.status == 'active'
       && session.expiresAt <= request.time.toMillis()
       && session.createdBy == request.auth.uid
-      && exists(studentPath)
+      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
       && student.authUid == request.resource.data.studentId
       && student.status == 'active'
       && student.campusId == session.campusId
