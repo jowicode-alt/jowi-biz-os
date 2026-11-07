@@ -132,6 +132,12 @@ try {
   const now = Date.now();
   const validSession = { title: "Morning class", campusId: "campus-1", classId: "class-1", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: now, expiresAt: now + 45 * 60000, activeCode: "123456", codeUpdatedAt: now, codeVersion: 1 };
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), validSession));
+  // Session code rotation is restricted to staff authorized for that session's campus.
+  await assertSucceeds(updateDoc(doc(campusAdmin, "institutions/inst-1/sessions/session-valid"), { activeCode: "234567", codeUpdatedAt: now + 30000, codeVersion: 2 }));
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-owned-campus-2"), { ...validSession, campusId: "campus-2", classId: "class-2", activeCode: "345678" }));
+  await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1/sessions/session-owned-campus-2"), { activeCode: "456789", codeUpdatedAt: now + 30000, codeVersion: 2 }));
+  await assertFails(updateDoc(doc(lecturer, "institutions/inst-1/sessions/session-valid"), { activeCode: "567890", codeUpdatedAt: now + 30000, codeVersion: 2 }));
+
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-bad-code"), { ...validSession, activeCode: "123" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-wrong-campus"), { ...validSession, campusId: "campus-2" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-extra-field"), { ...validSession, unapproved: true }));
