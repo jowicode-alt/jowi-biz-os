@@ -347,7 +347,7 @@ service cloud.firestore {
    match /enrolmentHistory/{docId} {
     allow read: if isInstitutionWideStaff(id)
       || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
-    allow create: if canManageCampus(id, request.resource.data.campusId)
+    allow create: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
       && request.resource.data.studentUid is string
       && request.resource.data.courseUnitId is string
       && request.resource.data.status == 'active'
