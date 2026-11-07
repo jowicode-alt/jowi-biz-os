@@ -157,7 +157,7 @@ try {
   await assertFails(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { title: "Tampered title", status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
   // Expired sessions: only the original session owner may create absence records.
   const expiredAt = Date.now() - 5000;
-  const expiredSession = { ...validSession, status: "active", createdBy: "owner-1", openedAt: expiredAt - 45 * 60000, expiresAt: expiredAt, activeCode: "909090" };
+  const expiredSession = { ...validSession, status: "active", createdBy: "owner-1", openedAt: expiredAt - 45 * 60000, expiresAt: expiredAt, codeUpdatedAt: expiredAt - 45 * 60000, activeCode: "909090" };
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-expired-absence"), expiredSession));
   const classAbsence = { sessionId: "session-expired-absence", studentId: "student-reader", studentName: "Reader", studentNumber: "S-READ", classId: "class-1", status: "absent", finalizedBy: "owner-1", finalizedAt: serverTimestamp() };
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/absences/session-expired-absence_student-reader"), classAbsence));
