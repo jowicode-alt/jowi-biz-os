@@ -154,7 +154,7 @@ service cloud.firestore {
       && exists(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId))
       && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)/classes/$(request.resource.data.classId)).data.campusId == request.resource.data.assignedCampusId
     ))
-    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt']);
+    && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','enrollmentYear','createdBy','createdByRole','status','createdAt']);
    allow update: if (
      signedIn() && request.auth.uid == resource.data.createdBy
      && resource.data.status in ['pending','email_failed']
@@ -164,7 +164,7 @@ service cloud.firestore {
      && request.resource.data.institutionId == resource.data.institutionId
      && request.resource.data.institutionCode == resource.data.institutionCode
      && canCreateMember(resource.data.institutionId, request.resource.data.role, request.resource.data.get('assignedCampusId',''))
-     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','createdBy','createdByRole','status','createdAt'])
+     && request.resource.data.keys().hasOnly(['name','email','contact','institutionId','institutionCode','institutionName','role','assignedCampusId','classId','className','studentNumber','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','createdBy','createdByRole','status','createdAt'])
    ) || (
      signedIn() && request.auth.token.email == resource.data.email
      && resource.data.status == 'pending'
@@ -245,9 +245,9 @@ service cloud.firestore {
       && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId
       && getAfter(invitePath(request.auth.token.email, id)).data.studentNumber == request.resource.data.studentNumber
       && request.resource.data.createdBy == get(invitePath(request.auth.token.email, id)).data.createdBy
-      && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
+      && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','enrollmentYear','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
     );
-    allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','updatedAt','updatedBy']);
     allow delete: if false;
    }
    match /sessions/{docId} {
@@ -323,13 +323,13 @@ service cloud.firestore {
    match /semesters/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionWideStaff(id)
-      && request.resource.data.keys().hasOnly(['name','academicYearId','startDate','endDate','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','semesterNumber','academicYearId','startDate','endDate','durationMonths','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /programmes/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionWideStaff(id)
-      && request.resource.data.keys().hasOnly(['name','code','description','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','code','description','durationYears','semestersPerYear','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /courseUnits/{docId} {
@@ -338,11 +338,26 @@ service cloud.firestore {
       && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
    }
+   match /curriculumMappings/{docId} {
+    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
+    allow create, update: if isInstitutionWideStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
    match /teachingGroups/{docId} {
     allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
     allow create, update: if canManageCampus(id, request.resource.data.campusId)
       && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
+   }
+   match /enrolmentHistory/{docId} {
+    allow read: if isInstitutionWideStaff(id)
+      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
+    allow create: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
+      && request.resource.data.studentUid is string
+      && request.resource.data.courseUnitId is string
+      && request.resource.data.status in ['active','inactive']
+      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','updatedAt','updatedBy','id','archivedAt','archivedBy','archiveReason','endedAt','endedBy']);
+    allow update, delete: if false;
    }
    match /enrolments/{docId} {
     allow get: if isInstitutionWideStaff(id)
@@ -351,7 +366,7 @@ service cloud.firestore {
     allow list: if isInstitutionWideStaff(id)
       || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
       || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid && resource.data.status == 'active');
-    allow create, update: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
+    allow create, update: if ((canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId)) || (signedIn() && request.resource.data.studentUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.status == 'accepted' && getAfter(invitePath(request.auth.token.email, id)).data.acceptedUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.courseUnitIds.hasAny([request.resource.data.courseUnitId]) && getAfter(invitePath(request.auth.token.email, id)).data.programmeId == request.resource.data.programmeId && getAfter(invitePath(request.auth.token.email, id)).data.academicYearId == request.resource.data.academicYearId && getAfter(invitePath(request.auth.token.email, id)).data.semesterId == request.resource.data.semesterId && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId))
       && request.resource.data.studentUid is string
       && request.resource.data.courseUnitId is string
       && request.resource.data.programmeId is string
@@ -359,10 +374,11 @@ service cloud.firestore {
       && request.resource.data.semesterId is string
       && request.resource.data.status in ['active','inactive']
       && request.resource.data.teachingGroupId is string
+      && request.resource.data.get('studyYear','') is string
       && docId == request.resource.data.studentUid + '_' + request.resource.data.courseUnitId
-      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId
+      && existsAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
+      && getAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.status == 'active'
+      && getAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId
       && exists(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId))
       && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.status == 'active'
       && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.programmeIds is list
