@@ -49,7 +49,7 @@ semester:id=>st.semesters.find(x=>x.id===id)?.name||id,
 };
 ids.forEach(key=>{
 const el=$("#learner-filter-"+key);if(!el)return;
-const values=[...new Set(candidates.map(s=>String(s[key==="enrollment-year"?"enrollmentYear":key==="study-year"?"studyYear":key==="academic-year"?"academicYearId":key==="teaching-group"?"teachingGroupId":key==="campus"?"campusId":key==="class"?"classId":key==="programme"?"programmeId":"semesterId"]||"").filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+const values=[...new Set(candidates.map(s=>String(s[key==="enrollment-year"?"enrollmentYear":key==="study-year"?"studyYear":key==="academic-year"?"academicYearId":key==="teaching-group"?"teachingGroupId":key==="campus"?"campusId":key==="class"?"classId":key==="programme"?"programmeId":"semesterId"]||"")).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
 const first=key==="campus"?"All campuses":key==="class"?"All classes":key==="programme"?"All programmes":key==="enrollment-year"?"All enrollment years":key==="study-year"?"All study years":key==="academic-year"?"All academic years":key==="semester"?"All semesters":"All teaching groups";
 el.innerHTML='<option value="">'+first+'</option>'+values.map(v=>'<option value="'+safe(v)+'">'+safe(labels[key](v))+'</option>').join("");
 if(values.includes(previous[key]))el.value=previous[key];
