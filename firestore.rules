@@ -306,35 +306,6 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /attendance/{docId} {
-    function validAbsentAttendance(id, docId) {
-     return signedIn()
-      && request.resource.data.get('status','') == 'absent'
-      && request.resource.data.get('finalizedBy','') == request.auth.uid
-      && request.resource.data.get('finalizedAt',null) == request.time
-      && docId == request.resource.data.get('sessionId','') + '_' + request.resource.data.get('studentId','')
-      && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','finalizedBy','finalizedAt'])
-      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.createdBy == request.auth.uid
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt <= request.time.toMillis()
-      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid == request.resource.data.studentId
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId
-      && (
-       (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.get('courseUnitId','') != ''
-        && request.resource.data.get('courseUnitId','') == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId
-        && exists(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId','')))
-        && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.status == 'active'
-        && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.academicYearId == request.resource.data.get('academicYearId','')
-        && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.semesterId == request.resource.data.get('semesterId','')
-        && (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.sessionGroupMode == 'combined'
-         || get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.teachingGroupId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.teachingGroupId))
-       || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.get('courseUnitId','') == ''
-        && request.resource.data.get('classId','') == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId
-        && request.resource.data.get('classId','') == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId)
-      );
-    }
     function canReadAttendanceRecord(id) {
     return inInstitution(id) && (
      memberRole(id) in ['owner','institution_admin']
@@ -349,8 +320,7 @@ service cloud.firestore {
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
     // Only the authenticated student who owns the learner record can submit their own attendance.
-    allow create: if request.resource.data.get('status','') == 'present'
-      ? (
+    allow create: if
       request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
       && request.resource.data.sessionId is string && request.resource.data.studentId is string
       && request.resource.data.studentName is string && request.resource.data.studentNumber is string
@@ -378,8 +348,43 @@ service cloud.firestore {
         || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
           && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
             <= get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.radiusMeters))
-      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId))
-      ) : validAbsentAttendance(id, docId);
+      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId));
+    allow update, delete: if false;
+   }
+   match /absences/{docId} {
+    allow get, list: if inInstitution(id) && (
+     memberRole(id) in ['owner','institution_admin']
+     || (memberRole(id) in ['campus_admin','lecturer'] && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))
+     || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
+    );
+    allow create: if signedIn() && inInstitution(id)
+     && request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','finalizedBy','finalizedAt'])
+     && request.resource.data.get('status','') == 'absent'
+     && request.resource.data.get('finalizedBy','') == request.auth.uid
+     && request.resource.data.get('finalizedAt',null) == request.time
+     && docId == request.resource.data.get('sessionId','') + '_' + request.resource.data.get('studentId','')
+     && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
+     && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.createdBy == request.auth.uid
+     && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
+     && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt <= request.time.toMillis()
+     && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
+     && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid == request.resource.data.studentId
+     && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
+     && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId
+     && (
+      (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.get('courseUnitId','') != ''
+       && request.resource.data.get('courseUnitId','') == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId
+       && exists(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId','')))
+       && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.status == 'active'
+       && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId
+       && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.academicYearId == request.resource.data.get('academicYearId','')
+       && get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.semesterId == request.resource.data.get('semesterId','')
+       && (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.sessionGroupMode == 'combined'
+        || get(enrolmentPath(id,request.resource.data.studentId,request.resource.data.get('courseUnitId',''))).data.teachingGroupId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.teachingGroupId))
+      || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.get('courseUnitId','') == ''
+       && request.resource.data.get('classId','') == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId
+       && request.resource.data.get('classId','') == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId)
+     );
     allow update, delete: if false;
    }
    // Academic structure for shared course units. These collections are additive;
