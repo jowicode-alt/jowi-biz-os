@@ -9,6 +9,7 @@ const env = await initializeTestEnvironment({ projectId, firestore: { rules } })
 const owner = env.authenticatedContext("owner-1").firestore();
 const lecturer = env.authenticatedContext("lecturer-1").firestore();
 const campusAdmin = env.authenticatedContext("campus-admin-1").firestore();
+const institutionAdmin = env.authenticatedContext("institution-admin-1").firestore();
 const outsider = env.authenticatedContext("outsider-1").firestore();
 const unauth = env.unauthenticatedContext().firestore();
 const invitedStudent = env.authenticatedContext("student-new", { email: "student-new@example.test" }).firestore();
@@ -25,6 +26,9 @@ try {
     await setDoc(doc(db, "institutions/inst-1/members/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", role: "lecturer", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
     await setDoc(doc(db, "users/campus-admin-1"), { uid: "campus-admin-1", name: "Campus Admin", email: "campus@example.test", institutionId: "inst-1", role: "campus_admin", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-1/members/campus-admin-1"), { uid: "campus-admin-1", name: "Campus Admin", email: "campus@example.test", role: "campus_admin", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
+    await setDoc(doc(db, "users/institution-admin-1"), { uid: "institution-admin-1", name: "Institution Admin", email: "institution-admin@example.test", institutionId: "inst-1", role: "institution_admin", status: "active", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1/members/institution-admin-1"), { uid: "institution-admin-1", name: "Institution Admin", email: "institution-admin@example.test", role: "institution_admin", status: "active", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1/members/lecturer-campus-2"), { uid: "lecturer-campus-2", name: "Other Campus Lecturer", role: "lecturer", status: "active", assignedCampusId: "campus-2" });
     await setDoc(doc(db, "users/outsider-1"), { uid: "outsider-1", name: "Outsider", email: "outsider@example.test", institutionId: "inst-2", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-2"), { name: "Other Institution", ownerId: "outsider-1", status: "pilot" });
     await setDoc(doc(db, "institutions/inst-2/members/outsider-1"), { uid: "outsider-1", role: "owner", status: "active" });
@@ -115,6 +119,10 @@ try {
   await assertSucceeds(getDoc(doc(owner, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(getDoc(doc(outsider, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
+  await assertSucceeds(getDoc(doc(campusAdmin, "institutions/inst-1/members/lecturer-1")));
+  await assertFails(getDoc(doc(campusAdmin, "institutions/inst-1/members/lecturer-campus-2")));
+  await assertFails(getDoc(doc(lecturer, "institutions/inst-1/members/lecturer-campus-2")));
+  await assertFails(updateDoc(doc(institutionAdmin, "institutions/inst-1/members/campus-admin-1"), { role: "owner" }));
   await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1"), { name: "Hijacked institution" }));
   await assertSucceeds(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-allowed"), { name: "Allowed class", code: "A1", campusId: "campus-1", createdAt: new Date(), createdBy: "campus-admin-1" }));
   await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-denied"), { name: "Denied class", code: "D1", campusId: "campus-2", createdAt: new Date(), createdBy: "campus-admin-1" }));
