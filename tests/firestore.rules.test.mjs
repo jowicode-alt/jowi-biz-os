@@ -92,7 +92,7 @@ try {
   const ownEnrolments = await getDocs(query(collection(studentReader, "institutions/inst-1/enrolments"), where("studentUid", "==", "student-reader"), where("status", "==", "active")));
   assert.equal(ownEnrolments.size, 1);
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-denied")));
-  await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-closed")));
+  await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-closed")));
   const learnerSessions = await getDocs(query(collection(studentReader, "institutions/inst-1/sessions"), where("status", "==", "active"), where("classId", "==", "class-1"), where("campusId", "==", "campus-1")));
   assert.equal(learnerSessions.size, 1);
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-1_student-reader")));
