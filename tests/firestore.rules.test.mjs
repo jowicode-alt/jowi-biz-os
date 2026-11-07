@@ -124,6 +124,7 @@ try {
   await assertFails(getDoc(doc(campusAdmin, "institutions/inst-1/members/lecturer-campus-2")));
   await assertFails(getDoc(doc(lecturer, "institutions/inst-1/members/lecturer-campus-2")));
   await assertFails(updateDoc(doc(institutionAdmin, "institutions/inst-1/members/campus-admin-1"), { role: "owner" }));
+  await assertFails(updateDoc(doc(owner, "institutions/inst-1/members/campus-admin-1"), { role: "owner" }));
   await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1"), { name: "Hijacked institution" }));
   await assertSucceeds(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-allowed"), { name: "Allowed class", code: "A1", campusId: "campus-1", createdAt: new Date(), createdBy: "campus-admin-1" }));
   await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-denied"), { name: "Denied class", code: "D1", campusId: "campus-2", createdAt: new Date(), createdBy: "campus-admin-1" }));
