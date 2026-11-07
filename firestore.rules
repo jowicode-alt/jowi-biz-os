@@ -137,7 +137,7 @@ service cloud.firestore {
    allow delete: if false;
   }
   match /invitations/{inviteId} {
-   allow get: if signedIn() && (request.auth.token.email == resource.data.email || (hasProfile() && profile().institutionId == resource.data.institutionId && canCreateMember(resource.data.institutionId, resource.data.role, resource.data.get('assignedCampusId',''))));
+   allow get: if signedIn() && ((hasProfile() && !exists(/databases/$(database)/documents/invitations/$(inviteId))) || request.auth.token.email == resource.data.email || (hasProfile() && profile().institutionId == resource.data.institutionId && canCreateMember(resource.data.institutionId, resource.data.role, resource.data.get('assignedCampusId',''))));
    allow list: if signedIn() && request.auth.token.email == resource.data.email;
    allow create: if signedIn() && hasProfile()
     && request.resource.data.createdBy == request.auth.uid
