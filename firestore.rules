@@ -216,7 +216,7 @@ service cloud.firestore {
    allow update: if canAdminMembers(id) && request.resource.data.ownerId == resource.data.ownerId;
    allow delete: if false;
    match /members/{uid} {
-    allow read: if inInstitution(id) && (request.auth.uid == uid || canManage(id));
+    allow read: if inInstitution(id) && (request.auth.uid == uid || isInstitutionWideStaff(id) || (memberRole(id) == 'campus_admin' && resource.data.get('assignedCampusId','') == assignedCampus(id)));
     allow create: if (
       signedIn() && request.auth.uid == uid
       && getAfter(/databases/$(database)/documents/institutions/$(id)).data.ownerId == request.auth.uid
@@ -239,7 +239,11 @@ service cloud.firestore {
       && request.resource.data.photoDataUrl.size() <= 180000
       && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','role','status','createdAt','createdBy','assignedCampusId'])
     );
-    allow update: if canAdminMembers(id) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','role','status']);
+    allow update: if canAdminMembers(id)
+     && resource.data.role != 'owner'
+     && request.resource.data.role in ['institution_admin','campus_admin','lecturer','student']
+     && (memberRole(id) == 'owner' || (memberRole(id) == 'institution_admin' && resource.data.role in ['campus_admin','lecturer','student'] && request.resource.data.role in ['campus_admin','lecturer','student']))
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','role','status']);
     allow delete: if false;
    }
    match /campuses/{docId} {
