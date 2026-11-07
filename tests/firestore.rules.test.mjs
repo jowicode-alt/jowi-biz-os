@@ -129,8 +129,6 @@ try {
   await assertSucceeds(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-allowed"), { name: "Allowed class", code: "A1", campusId: "campus-1", createdAt: new Date(), createdBy: "campus-admin-1" }));
   await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/classes/class-campus-denied"), { name: "Denied class", code: "D1", campusId: "campus-2", createdAt: new Date(), createdBy: "campus-admin-1" }));
   await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/campuses/campus-2"), { name: "Hijacked campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "campus-admin-1" }));
-  await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
-
   const now = Date.now();
   const validSession = { title: "Morning class", campusId: "campus-1", classId: "class-1", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: now, expiresAt: now + 45 * 60000, activeCode: "123456", codeUpdatedAt: now, codeVersion: 1 };
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), validSession));
@@ -148,6 +146,8 @@ try {
   await assertFails(updateDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-close-test"), { status: "closed", closedAt: Date.now(), closedBy: "lecturer-1" }));
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
   await assertFails(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { title: "Tampered title", status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
+  // Promote the lecturer only after verifying campus-scoped lecturer permissions.
+  await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/members/lecturer-1"), { role: "institution_admin" }));
 
   const inviteRef = doc(owner, "invitations/student-new@example.test__inst-1");
   const invite = { name: "New Student", email: "student-new@example.test", contact: "+256700000001", institutionId: "inst-1", institutionCode: "IC-ABCD-2345", role: "student", assignedCampusId: "campus-1", classId: "class-1", className: "Class 1", studentNumber: "S-100", createdBy: "owner-1", createdByRole: "owner", status: "pending", createdAt: serverTimestamp() };
