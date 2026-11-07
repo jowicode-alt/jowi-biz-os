@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, serverTimestamp, writeBatch, GeoPoint } from "firebase/firestore";
 import { strict as assert } from "node:assert";
 
 const projectId = "demo-intercampus";
@@ -143,6 +143,39 @@ try {
   registration.set(doc(invitedStudent, "institutions/inst-1/students/student-new"), { name: "New Student", studentNumber: "S-100", classId: "class-1", campusId: "campus-1", authUid: "student-new", deviceId: "device-token-123", status: "active", contact: "+256700000001", parentName: "Guardian", parentPhone: "+256700000002", dateOfBirth: "2008-04-12", gender: "Female", photoDataUrl, createdAt: serverTimestamp(), createdBy: "owner-1" });
   await assertSucceeds(registration.commit());
   await assertSucceeds(getDoc(doc(invitedStudent, "institutions/inst-1/students/student-new")));
+
+  // Attendance writes must be made by the learner account itself, with a fresh code and valid GPS accuracy.
+  const checkinNow = Date.now();
+  await env.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "institutions/inst-1/sessions/session-checkin-valid"), {
+      status: "active", classId: "class-1", campusId: "campus-1",
+      expiresAt: checkinNow + 60000, activeCode: "777777",
+      codeUpdatedAt: checkinNow, requiresGps: false
+    });
+    await setDoc(doc(db, "institutions/inst-1/sessions/session-checkin-stale"), {
+      status: "active", classId: "class-1", campusId: "campus-1",
+      expiresAt: checkinNow + 60000, activeCode: "888888",
+      codeUpdatedAt: checkinNow - 1806000, requiresGps: false
+    });
+  });
+  const validAttendance = {
+    sessionId: "session-checkin-valid", studentId: "student-reader",
+    studentName: "Reader", studentNumber: "S-READ", classId: "class-1",
+    status: "present", deviceId: "device-reader", code: "777777",
+    location: new GeoPoint(0, 0), accuracyMeters: 5, checkedAt: serverTimestamp()
+  };
+  await assertSucceeds(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-checkin-valid_student-reader"), validAttendance));
+  await assertFails(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-checkin-valid_student-reader"), validAttendance));
+  await assertFails(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-checkin-stale_student-reader"), {
+    ...validAttendance, sessionId: "session-checkin-stale", code: "888888"
+  }));
+  await assertFails(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-checkin-valid_student-other"), {
+    ...validAttendance, studentId: "student-other", deviceId: "device-other"
+  }));
+  await assertFails(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-checkin-invalid-accuracy_student-reader"), {
+    ...validAttendance, sessionId: "session-checkin-valid", accuracyMeters: 101
+  }));
 
   console.log("PASS: Firestore access control, role hierarchy, invitation acceptance and automatic learner UID/device binding");
 } finally {
