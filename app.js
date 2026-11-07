@@ -73,9 +73,9 @@ function renderStudentCourseAnalytics(){
   const attended=sessions.filter(s=>present.has(s.id)).length;
   return {name:st.courseUnits.find(c=>c.id===en.courseUnitId)?.name||en.courseUnitId,attended,total:sessions.length,rate:sessions.length?Math.round(attended/sessions.length*100):null};
  });
- const classId=st.classes[0]?.id,campusId=st.campuses[0]?.id;
- const classSessions=(st.sessions||[]).filter(s=>!s.courseUnitId&&s.classId===classId&&s.campusId===campusId&&sessionHasEnded(s));
- if(classSessions.length){const attended=classSessions.filter(s=>present.has(s.id)).length;rows.push({name:"Class attendance",attended,total:classSessions.length,rate:Math.round(attended/classSessions.length*100)})}
+ const learner=st.students[0],enrolments=st.enrolments||[];
+ const classSessions=(st.sessions||[]).filter(s=>sessionHasEnded(s)&&(s.courseUnitId?enrolments.some(en=>en.courseUnitId===s.courseUnitId&&en.campusId===s.campusId&&en.academicYearId===s.academicYearId&&en.semesterId===s.semesterId&&(s.sessionGroupMode==="combined"||(en.teachingGroupId||"")===(s.teachingGroupId||""))):s.classId===learner?.classId&&s.campusId===learner?.campusId));
+ if(classSessions.length){const attended=classSessions.filter(s=>present.has(s.id)).length;rows.push({name:"Overall class attendance",attended,total:classSessions.length,rate:Math.round(attended/classSessions.length*100)})}
  box.className=rows.length?"surface pale":"empty";
  box.innerHTML=rows.length?'<h3>Attendance percentages</h3>'+rows.map(x=>'<div class="record"><div><b>'+safe(x.name)+'</b><small>'+x.attended+' attended out of '+x.total+' eligible sessions</small></div><strong>'+(x.rate===null?"No sessions yet":x.rate+"%")+'</strong></div>').join(""):"No completed attendance opportunities yet.";
 }
@@ -96,8 +96,12 @@ async function renderAttendanceAnalytics(){
    const ids=new Set(eligible.map(x=>x.studentUid||x.authUid||x.id));
    const present=new Set((bySession.get(s.id)||[]).filter(r=>r.status==="present"&&ids.has(r.studentId)).map(r=>r.studentId));
    const p=present.size,e=eligible.length;totalEligible+=e;totalPresent+=p;
-   if(s.courseUnitId)add("unit:"+s.courseUnitId,"Course unit · "+(st.courseUnits.find(c=>c.id===s.courseUnitId)?.name||s.courseUnitId),e,p);
-   else add("class:"+s.classId,"Class · "+klass(s.classId),e,p);
+   if(s.courseUnitId){
+    add("unit:"+s.courseUnitId,"Course unit · "+(st.courseUnits.find(c=>c.id===s.courseUnitId)?.name||s.courseUnitId),e,p);
+    const byClass=new Map();
+    for(const en of eligible){const learner=st.students.find(x=>x.id===en.studentUid),classId=learner?.classId||"";if(!classId)continue;if(!byClass.has(classId))byClass.set(classId,{eligible:0,present:0});const group=byClass.get(classId);group.eligible++;if(present.has(en.studentUid))group.present++}
+    for(const [classId,group] of byClass)add("class:"+classId,"Class · "+klass(classId),group.eligible,group.present);
+   }else add("class:"+s.classId,"Class · "+klass(s.classId),e,p);
    add("campus:"+s.campusId,"Campus · "+campus(s.campusId),e,p);
   }
   const rows=[{label:"Overall attendance",eligible:totalEligible,present:totalPresent},...groups.values()];
