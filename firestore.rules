@@ -291,7 +291,7 @@ service cloud.firestore {
     allow create: if validSessionCreate(id);
     allow update: if inInstitution(id) && canTeach(id) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
-       && resource.data.status == 'active' && (resource.data.createdBy == request.auth.uid || memberRole(id) in ['owner','institution_admin','campus_admin'])
+       && resource.data.status == 'active' && (canManageCampus(id, resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == resource.data.campusId && resource.data.createdBy == request.auth.uid))
        && request.resource.data.activeCode is string && request.resource.data.activeCode.matches('^[0-9]{6}$')
        && request.resource.data.codeUpdatedAt is number
        && request.resource.data.codeUpdatedAt >= resource.data.codeUpdatedAt + 20000
