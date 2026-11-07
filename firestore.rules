@@ -408,7 +408,7 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /courseUnits/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
+    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']) || (inInstitution(id) && memberRole(id) == 'student' && exists(enrolmentPath(id, request.auth.uid, docId)) && get(enrolmentPath(id, request.auth.uid, docId)).data.status == 'active');
     allow create, update: if isInstitutionStaff(id)
       && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
