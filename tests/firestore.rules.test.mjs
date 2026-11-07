@@ -150,6 +150,9 @@ try {
 
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-lecturer-close-test"), { ...validSession, createdBy: "owner-1", activeCode: "654321" }));
   await assertFails(updateDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-close-test"), { status: "closed", closedAt: Date.now(), closedBy: "lecturer-1" }));
+  await assertSucceeds(setDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-owned-close-test"), { ...validSession, createdBy: "lecturer-1", activeCode: "765432" }));
+  await assertFails(updateDoc(doc(campusAdmin, "institutions/inst-1/sessions/session-lecturer-owned-close-test"), { status: "closed", closedAt: Date.now(), closedBy: "campus-admin-1" }));
+  await assertSucceeds(updateDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-owned-close-test"), { status: "closed", closedAt: Date.now(), closedBy: "lecturer-1" }));
   await assertSucceeds(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
   await assertFails(updateDoc(doc(owner, "institutions/inst-1/sessions/session-valid"), { title: "Tampered title", status: "closed", closedAt: Date.now(), closedBy: "owner-1" }));
   // Promote the lecturer only after verifying campus-scoped lecturer permissions.
