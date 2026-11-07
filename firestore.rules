@@ -351,7 +351,7 @@ service cloud.firestore {
       && request.resource.data.studentUid is string
       && request.resource.data.courseUnitId is string
       && request.resource.data.status == 'active'
-      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','id','archivedAt','archivedBy','archiveReason']);
+      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','updatedAt','updatedBy','id','archivedAt','archivedBy','archiveReason']);
     allow update, delete: if false;
    }
    match /enrolments/{docId} {
