@@ -107,3 +107,6 @@ header{position:sticky;top:0;z-index:1200;gap:12px}
 .settings-details small{font-size:9px}
 .settings-details b{font-size:13px;color:var(--deep);overflow-wrap:anywhere}
 @media(max-width:680px){header{height:60px;padding:0 12px}.sidebar{top:60px}.sidebar-backdrop{inset:60px 0 0}.app{min-height:calc(100svh - 60px)}.workspace{padding:16px 12px}.brand{font-size:14px}.brand .mark{width:36px;height:36px}.icon-button,.profile-button{width:38px;height:38px}.profile-dropdown{right:-3px}.mobile{display:block;margin-bottom:15px}.sidebar nav{grid-template-columns:1fr}.sidebar{margin:0;border-radius:0;padding:20px 14px}}
+
+/* Learner register cascading filters */
+.filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:12px 0 18px}.filter-grid>div{min-width:0}.filter-grid select{width:100%}
