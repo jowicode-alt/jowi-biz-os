@@ -316,31 +316,31 @@ service cloud.firestore {
    // legacy classes and class-based attendance remain supported during migration.
    match /academicYears/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionWideStaff(id)
+    allow create, update: if isInstitutionStaff(id)
       && request.resource.data.keys().hasOnly(['name','startDate','endDate','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /semesters/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionWideStaff(id)
+    allow create, update: if isInstitutionStaff(id)
       && request.resource.data.keys().hasOnly(['name','semesterNumber','academicYearId','startDate','endDate','durationMonths','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /programmes/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionWideStaff(id)
+    allow create, update: if isInstitutionStaff(id)
       && request.resource.data.keys().hasOnly(['name','code','description','durationYears','semestersPerYear','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /courseUnits/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionWideStaff(id)
+    allow create, update: if isInstitutionStaff(id)
       && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /curriculumMappings/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionWideStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);
+    allow create, update: if isInstitutionStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);
     allow delete: if false;
    }
    match /teachingGroups/{docId} {
