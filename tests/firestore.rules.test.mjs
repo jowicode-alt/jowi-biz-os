@@ -60,6 +60,9 @@ try {
   await assertSucceeds(getDoc(doc(owner, "institutions/inst-1")));
   await assertFails(getDoc(doc(unauth, "institutions/inst-1")));
   await assertFails(getDoc(doc(outsider, "institutions/inst-1")));
+  await assertSucceeds(getDoc(doc(outsider, "institutions/inst-2")));
+  await assertFails(getDocs(collection(outsider, "institutions/inst-1/students")));
+  await assertFails(setDoc(doc(outsider, "institutions/inst-1/classes/cross-tenant-write"), { name: "Cross tenant", code: "X1", campusId: "campus-1", createdAt: new Date(), createdBy: "outsider-1" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/attendance/forged"), { studentId: "x", present: true }));
   // Learners may read only their own attendance; staff are limited by role and assigned campus.
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/attendance/session-1_student-reader")));
@@ -125,6 +128,11 @@ try {
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-wrong-campus"), { ...validSession, campusId: "campus-2" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-extra-field"), { ...validSession, unapproved: true }));
   await assertFails(setDoc(doc(outsider, "institutions/inst-1/sessions/session-cross-tenant"), { ...validSession, createdBy: "outsider-1" }));
+  // Campus-scoped staff cannot open a class session outside their assigned campus.
+  await assertSucceeds(setDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-campus-allowed"), { ...validSession, createdBy: "lecturer-1", activeCode: "222222" }));
+  await assertFails(setDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-campus-denied"), { ...validSession, campusId: "campus-2", classId: "class-2", createdBy: "lecturer-1", activeCode: "333333" }));
+  await assertFails(setDoc(doc(campusAdmin, "institutions/inst-1/sessions/session-campus-admin-campus-denied"), { ...validSession, campusId: "campus-2", classId: "class-2", createdBy: "campus-admin-1", activeCode: "444444" }));
+  await assertFails(setDoc(doc(lecturer, "institutions/inst-1/attendance/session-forged_student-reader"), { sessionId: "session-forged", studentId: "student-reader", studentName: "Reader", studentNumber: "S-READ", classId: "class-1", status: "present", deviceId: "device-reader", code: "123456", location: new GeoPoint(0,0), accuracyMeters: 5, checkedAt: serverTimestamp() }));
 
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-lecturer-close-test"), { ...validSession, createdBy: "owner-1", activeCode: "654321" }));
   await assertFails(updateDoc(doc(lecturer, "institutions/inst-1/sessions/session-lecturer-close-test"), { status: "closed", closedAt: Date.now(), closedBy: "lecturer-1" }));
