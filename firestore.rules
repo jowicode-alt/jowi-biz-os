@@ -338,7 +338,12 @@ service cloud.firestore {
       && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
    }
-   match /curriculumMappings/{docId} {\n    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);\n    allow create, update: if isInstitutionWideStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);\n    allow delete: if false;\n   }\n   match /teachingGroups/{docId} {
+   match /curriculumMappings/{docId} {
+    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
+    allow create, update: if isInstitutionWideStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);
+    allow delete: if false;
+   }
+   match /teachingGroups/{docId} {
     allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
     allow create, update: if canManageCampus(id, request.resource.data.campusId)
       && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
