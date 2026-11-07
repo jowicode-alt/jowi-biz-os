@@ -247,7 +247,7 @@ service cloud.firestore {
       && request.resource.data.createdBy == get(invitePath(request.auth.token.email, id)).data.createdBy
       && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','enrollmentYear','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
     );
-    allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','updatedAt','updatedBy']);
     allow delete: if false;
    }
    match /sessions/{docId} {
@@ -343,6 +343,16 @@ service cloud.firestore {
     allow create, update: if canManageCampus(id, request.resource.data.campusId)
       && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
+   }
+   match /enrolmentHistory/{docId} {
+    allow read: if isInstitutionWideStaff(id)
+      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
+    allow create: if canManageCampus(id, request.resource.data.campusId)
+      && request.resource.data.studentUid is string
+      && request.resource.data.courseUnitId is string
+      && request.resource.data.status == 'active'
+      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','id','archivedAt','archivedBy','archiveReason']);
+    allow update, delete: if false;
    }
    match /enrolments/{docId} {
     allow get: if isInstitutionWideStaff(id)
