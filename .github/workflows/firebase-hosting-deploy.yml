@@ -58,7 +58,7 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-service-account.json" npx --yes firebase-tools@latest deploy --only firestore:indexes --project jowi-biz-os --non-interactive
       - name: Deploy to Firebase Hosting
-        if: always()
+        if: success()
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
