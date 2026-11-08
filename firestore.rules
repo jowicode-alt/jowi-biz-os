@@ -45,7 +45,6 @@ service cloud.firestore {
   }
   function inInstitution(id) { return hasProfile() && profile().institutionId == id && exists(memberPath(id, request.auth.uid)); }
   function memberRole(id) { return get(memberPath(id, request.auth.uid)).data.role; }
-  function canManage(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin']; }
   function canAdminMembers(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
   function invitePath(email, id) { return /databases/$(database)/documents/invitations/$(email + '__' + id); }
   function hasAcceptedInvite(id, uid, targetRole, code) {
@@ -346,46 +345,60 @@ service cloud.firestore {
      || (memberRole(id) in ['campus_admin','lecturer'] && ((resource.data.classId is string && assignedCampus(id) == classCampus(id, resource.data.classId)) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
-    // Resolve each related record once to keep rule evaluation within Firestore limits.
-    function validAttendanceCreate(id, docId) {
-     let data = request.resource.data;
-     let sessionRef = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
-     let learnerRef = /databases/$(database)/documents/institutions/$(id)/students/$(data.studentId);
-     let sessionExists = exists(sessionRef);
-     let learnerExists = exists(learnerRef);
-     let session = sessionExists ? get(sessionRef).data : {};
-     let learner = learnerExists ? get(learnerRef).data : {};
-     let unitId = data.get('courseUnitId', '');
-     let hasUnit = unitId is string && unitId.size() > 0;
-     let enrolRef = /databases/$(database)/documents/institutions/$(id)/enrolments/$(data.studentId + '_' + unitId);
-     let enrolExists = hasUnit && exists(enrolRef);
-     let enrol = enrolExists ? get(enrolRef).data : {};
-     let sessionHasUnit = session.get('courseUnitId', '') is string && session.get('courseUnitId', '').size() > 0;
-     let sessionType = session.get('sessionType', session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
-     return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
-      && data.sessionId is string && data.studentId is string
-      && data.studentName is string && data.studentNumber is string
-      && data.classId is string && data.status == 'present'
-      && data.deviceId is string && data.code is string
-      && data.location is latlng && data.accuracyMeters is number
-      && data.accuracyMeters >= 0 && data.accuracyMeters <= 100
-      && data.checkedAt == request.time
-      && request.auth.uid == data.studentId
-      && docId == data.sessionId + '_' + data.studentId
-      && sessionExists && learnerExists
-      && session.status == 'active'
-      && session.expiresAt > request.time.toMillis()
-      && session.activeCode == data.code
-      && session.codeUpdatedAt is number
-      && session.codeUpdatedAt <= request.time.toMillis()
-      && request.time.toMillis() - session.codeUpdatedAt <= 1805000
-      && learner.authUid == request.auth.uid
-      && learner.status == 'active'
-      && learner.deviceId == data.deviceId
-      && learner.campusId == session.campusId
-      && (!sessionHasUnit
-       ? learner.classId == data.classId && session.classId == data.classId
-       : hasUnit && enrolExists
+         function attendancePayloadValid(data, docId) {
+      return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+       && data.sessionId is string && data.studentId is string
+       && data.studentName is string && data.studentNumber is string
+       && data.classId is string && data.status == 'present'
+       && data.deviceId is string && data.code is string
+       && data.location is latlng && data.accuracyMeters is number
+       && data.accuracyMeters >= 0 && data.accuracyMeters <= 100
+       && data.checkedAt == request.time
+       && request.auth.uid == data.studentId
+       && docId == data.sessionId + '_' + data.studentId;
+     }
+     function attendanceSessionValid(id, data) {
+      let ref = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
+      let found = exists(ref);
+      let session = found ? get(ref).data : {};
+      return found && session.status == 'active'
+       && session.expiresAt > request.time.toMillis()
+       && session.activeCode == data.code
+       && session.codeUpdatedAt is number
+       && session.codeUpdatedAt <= request.time.toMillis()
+       && request.time.toMillis() - session.codeUpdatedAt <= 1805000;
+     }
+     function attendanceLearnerValid(id, data) {
+      let ref = /databases/$(database)/documents/institutions/$(id)/students/$(data.studentId);
+      let found = exists(ref);
+      let learner = found ? get(ref).data : {};
+      return found && learner.authUid == request.auth.uid
+       && learner.status == 'active'
+       && learner.deviceId == data.deviceId;
+     }
+     function attendanceCampusValid(id, data) {
+      let sessionRef = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
+      let learnerRef = /databases/$(database)/documents/institutions/$(id)/students/$(data.studentId);
+      return get(learnerRef).data.campusId == get(sessionRef).data.campusId;
+     }
+     function attendanceGpsValid(id, data) {
+      let ref = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
+      let session = get(ref).data;
+      return !session.get('requiresGps', false)
+       || (session.location is latlng && data.location.distance(session.location) <= session.radiusMeters);
+     }
+     function attendancePlacementValid(id, data) {
+      let sessionRef = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
+      let session = get(sessionRef).data;
+      let unitId = data.get('courseUnitId', '');
+      let enrolRef = /databases/$(database)/documents/institutions/$(id)/enrolments/$(data.studentId + '_' + unitId);
+      let hasUnit = unitId is string && unitId.size() > 0;
+      let enrolExists = hasUnit && exists(enrolRef);
+      let enrol = enrolExists ? get(enrolRef).data : {};
+      let sessionType = session.get('sessionType', session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
+      return !hasUnit
+       ? session.classId == data.classId
+       : enrolExists
         && session.courseUnitId == unitId
         && data.enrolmentId == data.studentId + '_' + unitId
         && enrol.status == 'active'
@@ -394,16 +407,24 @@ service cloud.firestore {
         && enrol.get('semesterId', '') == data.get('semesterId', '')
         && enrol.campusId == session.campusId
         && enrol.teachingGroupId == data.get('teachingGroupId', '')
-        && ((sessionType == 'class' && session.classId == data.classId && learner.classId == data.classId)
-         || (sessionType == 'course-unit' && (session.get('sessionGroupMode', 'combined') == 'combined'
-          || (session.get('sessionGroupMode', '') == 'separate'
-           && enrol.teachingGroupId == session.get('teachingGroupId', ''))))))
-      && (!session.get('requiresGps', false)
-       || (session.location is latlng && data.location.distance(session.location) <= session.radiusMeters))
-      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(data.sessionId + '_' + data.studentId));
-    }
-    allow create: if validAttendanceCreate(id, docId);
-    allow update, delete: if false;
+        && ((sessionType == 'class' && session.classId == data.classId)
+         || (sessionType == 'course-unit'
+          && (session.get('sessionGroupMode', 'combined') == 'combined'
+           || (session.get('sessionGroupMode', '') == 'separate'
+            && enrol.teachingGroupId == session.get('teachingGroupId', '')))));
+     }
+     function validAttendanceCreate(id, docId) {
+      let data = request.resource.data;
+      return attendancePayloadValid(data, docId)
+       && attendanceSessionValid(id, data)
+       && attendanceLearnerValid(id, data)
+       && attendanceCampusValid(id, data)
+       && attendanceGpsValid(id, data)
+       && attendancePlacementValid(id, data)
+       && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(docId));
+     }
+     allow create: if validAttendanceCreate(id, docId);
+allow update, delete: if false;
    }
    match /absences/{docId} {
     allow get, list: if inInstitution(id) && (
