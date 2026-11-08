@@ -52,7 +52,7 @@ try {
     await setDoc(doc(db, "institutions/inst-1/semesters/semester-2"), { name: "Semester 2", academicYearId: "year-2026", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-reader_cu-comm"), { studentUid: "student-reader", courseUnitId: "cu-comm", programmeId: "programme-it", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-shared-course-unit"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
-    await setDoc(doc(db, "institutions/inst-1/sessions/session-class-course-unit"), { status: "active", sessionType: "class", classId: "class-1", courseUnitId: "cu-comm", campusId: "campus-1", expiresAt: Date.now() + 60000 });
+    await setDoc(doc(db, "institutions/inst-1/sessions/session-class-course-unit"), { status: "active", sessionType: "class", classId: "class-1", courseUnitId: "cu-comm", campusId: "campus-1", activeCode: "123456", codeUpdatedAt: Date.now(), expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-course-unit-wrong-semester"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-2", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-allowed"), { status: "active", classId: "class-1", campusId: "campus-1", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-student-denied"), { status: "active", classId: "class-2", campusId: "campus-2", expiresAt: Date.now() + 60000 });
@@ -97,6 +97,7 @@ try {
   const learnerSessions = await getDocs(query(collection(studentReader, "institutions/inst-1/sessions"), where("status", "==", "active"), where("classId", "==", "class-1"), where("campusId", "==", "campus-1"), where("courseUnitId", "==", "cu-comm")));
   assert.equal(learnerSessions.size, 1);
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-class-course-unit")));
+  await assertSucceeds(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-class-course-unit_student-reader"), { sessionId: "session-class-course-unit", studentId: "student-reader", studentName: "Reader", studentNumber: "R-001", classId: "class-1", courseUnitId: "cu-comm", programmeId: "programme-it", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", enrolmentId: "student-reader_cu-comm", status: "present", deviceId: "device-reader", code: "123456", location: new GeoPoint(0, 0), accuracyMeters: 5, checkedAt: serverTimestamp() }));
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-1_student-reader")));
   await assertFails(getDoc(doc(lecturer, "institutions/inst-1/attendance/session-2_student-other-campus")));
   // Campus staff can read only their assigned campus documents and constrained query results.
