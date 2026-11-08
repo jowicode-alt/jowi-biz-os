@@ -381,251 +381,29 @@ service cloud.firestore {
     allow delete: if false;
    }
    match /sessions/{docId} {
-    allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadSession(id);
-    allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id)) || canStudentReadSession(id);
-    allow create: if validSessionCreate(id);
-    allow update: if canManageSession(id,resource.data) && (
+     allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || canStudentReadSession(id);
+     allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id)) || canStudentReadSession(id);
+     allow create: if validSessionCreate(id);
+     allow update: if canManageSession(id, resource.data) && (
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeCode','codeUpdatedAt','codeVersion'])
        && resource.data.status == 'active'
-       && request.resource.data.activeCode is string && request.resource.data.activeCode.matches('^[0-9]{6}
-    allow delete: if false;
-   }
-   match /attendance/{docId} {
-    function canReadAttendanceRecord(id) {
-    return inInstitution(id) && (
-     memberRole(id) in ['owner','institution_admin']
-     || (memberRole(id) in ['campus_admin','lecturer'] && ((resource.data.classId is string && assignedCampus(id) == classCampus(id, resource.data.classId)) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
-     || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
-    );
-   }
-   allow get: if canReadAttendanceRecord(id);
-   allow list: if inInstitution(id) && (
-     memberRole(id) in ['owner','institution_admin']
-     || (memberRole(id) in ['campus_admin','lecturer'] && ((resource.data.classId is string && assignedCampus(id) == classCampus(id, resource.data.classId)) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
-     || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
-    );
-         function attendancePayloadValid(data, docId) {
-      return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
-       && data.sessionId is string && data.studentId is string
-       && data.studentName is string && data.studentNumber is string
-       && data.classId is string && data.status == 'present'
-       && data.deviceId is string && data.code is string
-       && data.location is latlng && data.accuracyMeters is number
-       && data.accuracyMeters >= 0 && data.accuracyMeters <= 100
-       && data.checkedAt == request.time
-       && request.auth.uid == data.studentId
-       && docId == data.sessionId + '_' + data.studentId;
-     }
-     function attendanceSessionValid(session, data) {
-      return session.status == 'active'
-       && session.expiresAt > request.time.toMillis()
-       && session.activeCode == data.code
-       && session.codeUpdatedAt is number
-       && session.codeUpdatedAt <= request.time.toMillis()
-       && request.time.toMillis() - session.codeUpdatedAt <= 1805000;
-     }
-     function attendanceLearnerValid(learner, data) {
-      return learner.authUid == request.auth.uid
-       && learner.status == 'active'
-       && learner.deviceId == data.deviceId;
-     }
-     function attendancePlacementValid(id, data, session) {
-      let unitId = data.get('courseUnitId', '');
-      let hasUnit = unitId is string && unitId.size() > 0;
-      let enrolRef = /databases/$(database)/documents/institutions/$(id)/enrolments/$(data.studentId + '_' + unitId);
-      let enrolExists = hasUnit && exists(enrolRef);
-      let enrol = enrolExists ? get(enrolRef).data : {};
-      let sessionType = session.get('sessionType', session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
-      return !hasUnit
-       ? session.get('classId', '') == data.classId
-       : enrolExists
-        && session.get('courseUnitId', '') == unitId
-        && data.get('enrolmentId', '') == data.studentId + '_' + unitId
-        && enrol.get('status', '') == 'active'
-        && enrol.get('programmeId', '') == data.get('programmeId', '')
-        && enrol.get('academicYearId', '') == data.get('academicYearId', '')
-        && enrol.get('semesterId', '') == data.get('semesterId', '')
-        && enrol.get('campusId', '') == session.get('campusId', '')
-        && enrol.get('teachingGroupId', '') == data.get('teachingGroupId', '')
-        && ((sessionType == 'class' && session.get('classId', '') == data.classId)
-         || (sessionType == 'course-unit'
-          && (session.get('sessionGroupMode', 'combined') == 'combined'
-           || (session.get('sessionGroupMode', '') == 'separate'
-            && enrol.get('teachingGroupId', '') == session.get('teachingGroupId', '')))));
-     }
-     function attendanceGpsValid(session, data) {
-      return !session.get('requiresGps', false)
-       || (session.get('location', null) is latlng
-        && data.location.distance(session.location) <= session.get('radiusMeters', 0));
-     }
-     function validAttendanceCreate(id, docId) {
-      let data = request.resource.data;
-      let sessionRef = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
-      let learnerRef = /databases/$(database)/documents/institutions/$(id)/students/$(data.studentId);
-      let sessionFound = exists(sessionRef);
-      let learnerFound = exists(learnerRef);
-      let session = sessionFound ? get(sessionRef).data : {};
-      let learner = learnerFound ? get(learnerRef).data : {};
-      return attendancePayloadValid(data, docId)
-       && sessionFound && attendanceSessionValid(session, data)
-       && learnerFound && attendanceLearnerValid(learner, data)
-       && learner.get('campusId', '') == session.get('campusId', '')
-       && attendanceGpsValid(session, data)
-       && attendancePlacementValid(id, data, session)
-       && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(docId));
-     }
-     allow create: if validAttendanceCreate(id, docId);
-allow update, delete: if false;
-   }
-   match /absences/{docId} {
-    function absencePlacementValid(id,data,session,student) {
-     let unitId = data.get('courseUnitId','');
-     let hasUnit = unitId is string && unitId.size() > 0;
-     let enrolRef = /databases/$(database)/documents/institutions/$(id)/enrolments/$(data.studentId + '_' + unitId);
-     let enrolExists = hasUnit && exists(enrolRef);
-     let enrol = enrolExists ? get(enrolRef).data : {};
-     let sessionType = session.get('sessionType',session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
-     return !hasUnit
-      ? data.get('classId','') == session.get('classId','') && data.get('classId','') == student.get('classId','')
-      : session.get('courseUnitId','') == unitId && enrolExists
-       && enrol.get('status','') == 'active'
-       && enrol.get('campusId','') == session.get('campusId','')
-       && enrol.get('academicYearId','') == data.get('academicYearId','')
-       && enrol.get('semesterId','') == data.get('semesterId','')
-       && ((sessionType == 'class'
-         && data.get('classId','') == session.get('classId','')
-         && data.get('classId','') == student.get('classId',''))
-        || (sessionType == 'course-unit'
-         && (session.get('sessionGroupMode','') == 'combined'
-          || enrol.get('teachingGroupId','') == session.get('teachingGroupId',''))));
-    }
-    function validAbsenceCreate(id,docId) {
-     let data = request.resource.data;
-     let sessionRef = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.get('sessionId',''));
-     let studentRef = /databases/$(database)/documents/institutions/$(id)/students/$(data.get('studentId',''));
-     let sessionFound = exists(sessionRef);
-     let studentFound = exists(studentRef);
-     let session = sessionFound ? get(sessionRef).data : {};
-     let student = studentFound ? get(studentRef).data : {};
-     return signedIn() && inInstitution(id) && data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','finalizedBy','finalizedAt'])
-      && data.get('status','') == 'absent' && data.get('finalizedBy','') == request.auth.uid
-      && data.get('finalizedAt',null) == request.time
-      && docId == data.get('sessionId','') + '_' + data.get('studentId','')
-      && sessionFound && session.get('createdBy','') == request.auth.uid
-      && session.get('status','') == 'active' && session.get('expiresAt',0) <= request.time.toMillis()
-      && studentFound && student.get('authUid','') == data.get('studentId','')
-      && student.get('status','') == 'active'
-      && student.get('campusId','') == session.get('campusId','')
-      && absencePlacementValid(id,data,session,student);
-    }
-    
-    allow get, list: if inInstitution(id) && (
-     memberRole(id) in ['owner','institution_admin']
-     || (memberRole(id) in ['campus_admin','lecturer'] && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))
-     || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
-    );
-    allow create: if validAbsenceCreate(id,docId);
-    allow update, delete: if false;
-   }
-   // Academic structure for shared course units. These collections are additive;
-   // legacy classes and class-based attendance remain supported during migration.
-   match /academicYears/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','startDate','endDate','status','createdAt','createdBy']);
-    allow delete: if false;
-   }
-   match /semesters/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','semesterNumber','academicYearId','startDate','endDate','durationMonths','status','createdAt','createdBy']);
-    allow delete: if false;
-   }
-   match /programmes/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','code','description','durationYears','semestersPerYear','status','createdAt','createdBy']);
-    allow delete: if false;
-   }
-   match /courseUnits/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']) || (inInstitution(id) && memberRole(id) == 'student' && exists(enrolmentPath(id, request.auth.uid, docId)) && get(enrolmentPath(id, request.auth.uid, docId)).data.status == 'active');
-    allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
-    allow delete: if false;
-   }
-   match /curriculumMappings/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);
-    allow delete: if false;
-   }
-   match /teachingGroups/{docId} {
-    allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
-    allow create, update: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
-      && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
-    allow delete: if false;
-   }
-   match /enrolmentHistory/{docId} {
-    allow read: if isInstitutionWideStaff(id)
-      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
-    allow create: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
-      && request.resource.data.studentUid is string
-      && request.resource.data.courseUnitId is string
-      && request.resource.data.status in ['active','inactive']
-      && request.resource.data.keys().hasOnly(['studentUid','courseUnitId','programmeId','studyYear','academicYearId','semesterId','enrollmentYear','campusId','teachingGroupId','status','createdAt','createdBy','updatedAt','updatedBy','id','archivedAt','archivedBy','archiveReason','endedAt','endedBy']);
-    allow update, delete: if false;
-   }
-   match /enrolments/{docId} {
-    allow get: if isInstitutionWideStaff(id)
-      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
-      || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid);
-    allow list: if isInstitutionWideStaff(id)
-      || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id))
-      || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid && resource.data.status == 'active');
-    allow create, update: if ((canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId)) || (signedIn() && request.resource.data.studentUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.status == 'accepted' && getAfter(invitePath(request.auth.token.email, id)).data.acceptedUid == request.auth.uid && getAfter(invitePath(request.auth.token.email, id)).data.courseUnitIds.hasAny([request.resource.data.courseUnitId]) && getAfter(invitePath(request.auth.token.email, id)).data.programmeId == request.resource.data.programmeId && getAfter(invitePath(request.auth.token.email, id)).data.academicYearId == request.resource.data.academicYearId && getAfter(invitePath(request.auth.token.email, id)).data.semesterId == request.resource.data.semesterId && getAfter(invitePath(request.auth.token.email, id)).data.assignedCampusId == request.resource.data.campusId))
-      && request.resource.data.studentUid is string
-      && request.resource.data.courseUnitId is string
-      && request.resource.data.programmeId is string
-      && request.resource.data.academicYearId is string
-      && request.resource.data.semesterId is string
-      && request.resource.data.status in ['active','inactive']
-      && request.resource.data.teachingGroupId is string
-      && request.resource.data.get('studyYear','') is string
-      && docId == request.resource.data.studentUid + '_' + request.resource.data.courseUnitId
-      && existsAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid))
-      && getAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.status == 'active'
-      && getAfter(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentUid)).data.campusId == request.resource.data.campusId
-      && exists(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId))
-      && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.programmeIds is list
-      && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(request.resource.data.courseUnitId)).data.programmeIds.hasAny([request.resource.data.programmeId])
-      && exists(/databases/$(database)/documents/institutions/$(id)/programmes/$(request.resource.data.programmeId))
-      && get(/databases/$(database)/documents/institutions/$(id)/programmes/$(request.resource.data.programmeId)).data.status == 'active'
-      && exists(/databases/$(database)/documents/institutions/$(id)/academicYears/$(request.resource.data.academicYearId))
-      && get(/databases/$(database)/documents/institutions/$(id)/academicYears/$(request.resource.data.academicYearId)).data.status == 'active'
-      && exists(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId))
-      && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.academicYearId == request.resource.data.academicYearId;
-    allow delete: if false;
-   }
-   match /{document=**} { allow read, write: if false; }
-  }
-  match /{document=**} { allow read, write: if false; }
- }
-}
-)
+       && request.resource.data.activeCode is string
+       && request.resource.data.activeCode.matches('^[0-9]{6}$')
        && request.resource.data.codeUpdatedAt is number
        && request.resource.data.codeUpdatedAt >= resource.data.codeUpdatedAt + 20000
        && request.resource.data.codeUpdatedAt <= request.time.toMillis() + 60000
        && request.resource.data.codeVersion == resource.data.codeVersion + 1)
       ||
       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','closedAt','closedBy'])
-       && request.resource.data.status == 'closed' && resource.data.status == 'active'
-       && resource.data.createdBy == request.auth.uid && request.resource.data.closedBy == request.auth.uid
+       && request.resource.data.status == 'closed'
+       && resource.data.status == 'active'
+       && resource.data.createdBy == request.auth.uid
+       && request.resource.data.closedBy == request.auth.uid
        && request.resource.data.closedAt is number)
-    );
-    allow delete: if false;
-   }
-   match /attendance/{docId} {
+     );
+     allow delete: if false;
+    }
+    match /attendance/{docId} {
     function canReadAttendanceRecord(id) {
     return inInstitution(id) && (
      memberRole(id) in ['owner','institution_admin']
