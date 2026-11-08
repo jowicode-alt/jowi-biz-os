@@ -420,7 +420,7 @@ service cloud.firestore {
    }
    match /teachingGroups/{docId} {
     allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
-    allow create, update: if canManageCampus(id, request.resource.data.campusId)
+    allow create, update: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
       && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
     allow delete: if false;
    }
