@@ -346,36 +346,63 @@ service cloud.firestore {
      || (memberRole(id) in ['campus_admin','lecturer'] && ((resource.data.classId is string && assignedCampus(id) == classCampus(id, resource.data.classId)) || (exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(resource.data.sessionId)).data.campusId == assignedCampus(id))))
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
-    // Only the authenticated student who owns the learner record can submit their own attendance.
-    allow create: if
-      request.resource.data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
-      && request.resource.data.sessionId is string && request.resource.data.studentId is string
-      && request.resource.data.studentName is string && request.resource.data.studentNumber is string
-      && request.resource.data.classId is string && request.resource.data.status == 'present'
-      && request.resource.data.deviceId is string && request.resource.data.code is string
-      && request.resource.data.location is latlng && request.resource.data.accuracyMeters is number
-      && request.resource.data.accuracyMeters >= 0 && request.resource.data.accuracyMeters <= 100 && request.resource.data.checkedAt == request.time
-      && request.auth.uid == request.resource.data.studentId
-      && docId == request.resource.data.sessionId + '_' + request.resource.data.studentId
-      && exists(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId))
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.expiresAt > request.time.toMillis()
-      && ((get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.keys().hasAny(['courseUnitId']) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId is string && request.resource.data.courseUnitId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId && exists(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)) && request.resource.data.enrolmentId == request.resource.data.studentId + '_' + request.resource.data.courseUnitId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.status == 'active' && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.programmeId == request.resource.data.programmeId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.academicYearId == request.resource.data.academicYearId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.semesterId == request.resource.data.semesterId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.teachingGroupId == request.resource.data.teachingGroupId && ((get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.get('sessionType','') == 'class' && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId) || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.get('sessionType','') == 'course-unit' && (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.sessionGroupMode == 'combined' || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.sessionGroupMode == 'separate' && get(enrolmentPath(id, request.resource.data.studentId, request.resource.data.courseUnitId)).data.teachingGroupId == get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.teachingGroupId))))) || (!get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.keys().hasAny(['courseUnitId']) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.classId == request.resource.data.classId))
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.activeCode == request.resource.data.code
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt is number
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt <= request.time.toMillis()
-      && request.time.toMillis() - get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.codeUpdatedAt <= 1805000
-      && exists(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId))
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.authUid == request.auth.uid
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.status == 'active'
-      && get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.deviceId == request.resource.data.deviceId
-      && (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.keys().hasAny(['courseUnitId']) && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.courseUnitId is string || get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.classId == request.resource.data.classId)
-      && get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.campusId == get(/databases/$(database)/documents/institutions/$(id)/students/$(request.resource.data.studentId)).data.campusId
-      && (!get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.requiresGps
-        || (get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location is latlng
-          && request.resource.data.location.distance(get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.location)
-            <= get(/databases/$(database)/documents/institutions/$(id)/sessions/$(request.resource.data.sessionId)).data.radiusMeters))
-      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(request.resource.data.sessionId + '_' + request.resource.data.studentId));
+    // Resolve each related record once to keep rule evaluation within Firestore limits.
+    function validAttendanceCreate(id, docId) {
+     let data = request.resource.data;
+     let sessionRef = /databases/$(database)/documents/institutions/$(id)/sessions/$(data.sessionId);
+     let learnerRef = /databases/$(database)/documents/institutions/$(id)/students/$(data.studentId);
+     let sessionExists = exists(sessionRef);
+     let learnerExists = exists(learnerRef);
+     let session = sessionExists ? get(sessionRef).data : {};
+     let learner = learnerExists ? get(learnerRef).data : {};
+     let unitId = data.get('courseUnitId', '');
+     let hasUnit = unitId is string && unitId.size() > 0;
+     let enrolRef = /databases/$(database)/documents/institutions/$(id)/enrolments/$(data.studentId + '_' + unitId);
+     let enrolExists = hasUnit && exists(enrolRef);
+     let enrol = enrolExists ? get(enrolRef).data : {};
+     let sessionHasUnit = session.get('courseUnitId', '') is string && session.get('courseUnitId', '').size() > 0;
+     let sessionType = session.get('sessionType', session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
+     return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+      && data.sessionId is string && data.studentId is string
+      && data.studentName is string && data.studentNumber is string
+      && data.classId is string && data.status == 'present'
+      && data.deviceId is string && data.code is string
+      && data.location is latlng && data.accuracyMeters is number
+      && data.accuracyMeters >= 0 && data.accuracyMeters <= 100
+      && data.checkedAt == request.time
+      && request.auth.uid == data.studentId
+      && docId == data.sessionId + '_' + data.studentId
+      && sessionExists && learnerExists
+      && session.status == 'active'
+      && session.expiresAt > request.time.toMillis()
+      && session.activeCode == data.code
+      && session.codeUpdatedAt is number
+      && session.codeUpdatedAt <= request.time.toMillis()
+      && request.time.toMillis() - session.codeUpdatedAt <= 1805000
+      && learner.authUid == request.auth.uid
+      && learner.status == 'active'
+      && learner.deviceId == data.deviceId
+      && learner.campusId == session.campusId
+      && (!sessionHasUnit
+       ? learner.classId == data.classId && session.classId == data.classId
+       : hasUnit && enrolExists
+        && session.courseUnitId == unitId
+        && data.enrolmentId == data.studentId + '_' + unitId
+        && enrol.status == 'active'
+        && enrol.programmeId == data.programmeId
+        && enrol.get('academicYearId', '') == data.get('academicYearId', '')
+        && enrol.get('semesterId', '') == data.get('semesterId', '')
+        && enrol.campusId == session.campusId
+        && enrol.teachingGroupId == data.get('teachingGroupId', '')
+        && ((sessionType == 'class' && session.classId == data.classId && learner.classId == data.classId)
+         || (sessionType == 'course-unit' && (session.get('sessionGroupMode', 'combined') == 'combined'
+          || (session.get('sessionGroupMode', '') == 'separate'
+           && enrol.teachingGroupId == session.get('teachingGroupId', ''))))))
+      && (!session.get('requiresGps', false)
+       || (session.location is latlng && data.location.distance(session.location) <= session.radiusMeters))
+      && !exists(/databases/$(database)/documents/institutions/$(id)/attendance/$(data.sessionId + '_' + data.studentId));
+    }
+    allow create: if validAttendanceCreate(id, docId);
     allow update, delete: if false;
    }
    match /absences/{docId} {
