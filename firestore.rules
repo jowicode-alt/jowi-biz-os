@@ -81,6 +81,7 @@ service cloud.firestore {
     && (member.get('role','') in ['owner','institution_admin']
      || (member.get('role','') == 'campus_admin' && member.get('assignedCampusId','') == campusId));
   }
+  function classCampus(id,classId) { return get(/databases/$(database)/documents/institutions/$(id)/classes/$(classId)).data.campusId; }
   function canManageClass(id,classId) {
    let userRef = userPath(request.auth.uid);
    let memberRef = memberPath(id,request.auth.uid);
