@@ -29,16 +29,16 @@ service cloud.firestore {
       && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.status == 'active'
       && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.campusId == resource.data.campusId
       && (
-       (resource.data.get('sessionType', 'course-unit') == 'class'
+       (resource.data.get('sessionType', resource.data.keys().hasAny(['classId']) ? 'class' : 'course-unit') == 'class'
         && resource.data.classId == ownStudent(id).classId
         && resource.data.campusId == ownStudent(id).campusId)
        ||
-       (resource.data.get('sessionType', 'course-unit') == 'course-unit'
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.academicYearId == resource.data.academicYearId
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.semesterId == resource.data.semesterId
+       (resource.data.get('sessionType', resource.data.keys().hasAny(['classId']) ? 'class' : 'course-unit') == 'course-unit'
+        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('academicYearId', '') == resource.data.get('academicYearId', '')
+        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('semesterId', '') == resource.data.get('semesterId', '')
         && (resource.data.get('sessionGroupMode', 'combined') == 'combined'
          || (resource.data.get('sessionGroupMode', 'separate') == 'separate'
-          && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.teachingGroupId == resource.data.get('teachingGroupId', ''))))
+          && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('teachingGroupId', '') == resource.data.get('teachingGroupId', ''))))
       )
      )
     );
@@ -138,7 +138,7 @@ service cloud.firestore {
      && request.resource.data.keys().hasOnly(['uid','name','email','contact','dateOfBirth','gender','photoDataUrl','institutionId','institutionCode','role','status','createdAt','createdBy','assignedCampusId','classId','studentNumber','parentName','parentPhone','registeredDeviceId'])
    );
    allow update: if signedIn() && request.auth.uid == uid
-    && request.resource.data.email == request.auth.token.email
+    && request.resource.data.get('email', '') == request.auth.token.get('email', '')
     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name','email','contact','dateOfBirth','gender','photoDataUrl','institutionCode'])
     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photoDataUrl']) || (request.resource.data.photoDataUrl is string && request.resource.data.photoDataUrl.size() <= 180000))
     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['institutionCode']) || (request.resource.data.institutionCode is string && request.resource.data.institutionId is string && get(/databases/$(database)/documents/institutions/$(request.resource.data.institutionId)).data.institutionCode == request.resource.data.institutionCode));
