@@ -59,7 +59,7 @@ if(lecturerUnassigned){$("#student-active-list").textContent="Your lecturer acco
 $("#learner-register-count").textContent=active.length+" active · "+inactive.length+" inactive";
 allKeys.forEach((key,index)=>{const el=$("#learner-filter-"+key);if(el&&!el.dataset.bound){el.dataset.bound="1";el.addEventListener("change",()=>{allKeys.slice(index+1).forEach(next=>{const target=$("#learner-filter-"+next);if(target)target.value=""});renderLearnerRegister()})}});
 
-const clear=$("#clear-learner-filters");if(clear&&!clear.dataset.bound){clear.dataset.bound="1";clear.addEventListener("click",()=>{allKeys.forEach(k=>{const el=$("#learner-filter-"+k);if(el)el.value=""});if(searchInput)searchInput.value="";renderLearnerRegister()})}
+
 }
 \n// Stable delegated handlers keep learner search and row actions alive after list re-renders.
 if(!document.documentElement.dataset.learnerRegisterHandlersBound){
