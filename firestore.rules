@@ -545,36 +545,36 @@ allow update, delete: if false;
    match /academicYears/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','startDate','endDate','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','startDate','endDate','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
    }
    match /semesters/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','semesterNumber','academicYearId','startDate','endDate','durationMonths','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','semesterNumber','academicYearId','startDate','endDate','durationMonths','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
    }
    match /programmes/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
     allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','code','description','durationYears','semestersPerYear','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','code','description','durationYears','semestersPerYear','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
    }
    match /courseUnits/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']) || (inInstitution(id) && memberRole(id) == 'student' && exists(enrolmentPath(id, request.auth.uid, docId)) && get(enrolmentPath(id, request.auth.uid, docId)).data.status == 'active');
     allow create, update: if isInstitutionStaff(id)
-      && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','code','description','programmeIds','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
    }
    match /curriculumMappings/{docId} {
     allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
-    allow create, update: if isInstitutionStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy']);
+    allow create, update: if isInstitutionStaff(id) && request.resource.data.keys().hasOnly(['programmeId','courseUnitId','studyYear','semesterNumber','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
    }
    match /teachingGroups/{docId} {
     allow read: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId);
     allow create, update: if (canManageCampus(id, request.resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'lecturer' && assignedCampus(id) == request.resource.data.campusId))
-      && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy']);
+      && request.resource.data.keys().hasOnly(['name','code','campusId','programmeIds','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
    }
    match /enrolmentHistory/{docId} {
