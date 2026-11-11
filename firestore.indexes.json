@@ -183,6 +183,112 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sessionType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "courseUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "campusId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "studyYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "academicYearId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "semesterId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sessionGroupMode",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sessionType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "courseUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "campusId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "studyYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "academicYearId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "semesterId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sessionGroupMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "teachingGroupId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sessionType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "courseUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "campusId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "classId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "studyYear",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "academicYearId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "semesterId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
