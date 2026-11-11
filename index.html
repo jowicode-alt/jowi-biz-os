@@ -1,4 +1,17 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123d35"><title>InterCampus Attendance</title><link rel="stylesheet" href="styles.css"></head><body class="auth-pending"><script>window.setTimeout(()=>document.body.classList.remove("auth-pending"),10000);</script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123d35"><title>InterCampus Attendance</title><link rel="stylesheet" href="styles.css"></head><body class="auth-pending"><script>
+window.__interCampusBootReady=false;
+window.__interCampusBootFail=function(detail){
+  document.body.classList.remove("auth-pending");
+  let box=document.getElementById("portal-boot-error");
+  if(!box){box=document.createElement("section");box.id="portal-boot-error";box.setAttribute("role","alert");box.style.cssText="position:fixed;z-index:99999;left:16px;right:16px;top:90px;padding:18px;border:1px solid #b45309;border-radius:12px;background:#fff7ed;color:#7c2d12;font:14px/1.5 system-ui;box-shadow:0 8px 30px #0002";document.body.appendChild(box);}
+  box.innerHTML="<b>InterCampus could not finish loading.</b><p>The login controls did not initialise. Reload the page once. If this continues, send this diagnostic to support:</p><code></code>";
+  box.querySelector("code").textContent=String(detail||"Application module did not start").slice(0,240);
+};
+window.addEventListener("error",function(e){if(!window.__interCampusBootReady)window.__interCampusBootFail(e.message||"Application script failed to load");});
+window.addEventListener("unhandledrejection",function(e){if(!window.__interCampusBootReady)window.__interCampusBootFail(e.reason?.message||e.reason||"Application initialisation failed");});
+window.setTimeout(function(){if(!window.__interCampusBootReady)window.__interCampusBootFail("Application module did not complete startup within 15 seconds.");},15000);
+window.setTimeout(()=>document.body.classList.remove("auth-pending"),10000);
+</script>
 <header>
 <button id="sidebar-toggle" class="icon-button hidden" type="button" aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg></button>
 <a class="brand" href="#"><b class="mark" aria-label="InterCampus mark"><svg viewBox="0 0 40 40" role="img" aria-label="InterCampus symbol"><path d="M5 31V18l15-10 15 10v13M11 31V21l9-6 9 6v10M17 31v-7h6v7" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="5" r="2.2" fill="currentColor"/><path d="M4 35h32" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></b> InterCampus <strong>Attendance</strong></a>
