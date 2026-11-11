@@ -288,15 +288,16 @@ $("#export-pdf").onclick=async()=>{
   const sessionIds=new Set(sessions.map(s=>s.id));
   records=records.filter(r=>sessionIds.has(r.sessionId)&&(!filters.programme||r.programmeId===filters.programme));
   const sessionsById=new Map(sessions.map(s=>[s.id,s]));
-  const categoryLabel=s=>s.sessionType==="class"?"Class sessions":s.sessionGroupMode==="combined"?"Combined / all session groups":(st.teachingGroups.find(g=>g.id===s.teachingGroupId)?.name||"Uncategorised");
+  const categoryKey=s=>s.sessionType==="class"?"__class__":s.sessionGroupMode==="combined"?"__combined__":(s.teachingGroupId||"__uncategorised__");
+  const categoryLabel=key=>key==="__class__"?"Class sessions":key==="__combined__"?"Combined / all session groups":key==="__uncategorised__"?"Uncategorised":(st.teachingGroups.find(g=>g.id===key)?.name||"Session group");
   const grouped=new Map();
-  for(const r of records){const session=sessionsById.get(r.sessionId);if(!session)continue;const category=categoryLabel(session);if(!grouped.has(category))grouped.set(category,[]);grouped.get(category).push({record:r,session});}
+  for(const r of records){const session=sessionsById.get(r.sessionId);if(!session)continue;const key=categoryKey(session);if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push({record:r,session});}
   const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"});
   const categories=[...grouped.keys()].sort((a,b)=>a.localeCompare(b));
   if(!categories.length)throw Error("No attendance records match the selected report filters.");
   categories.forEach((category,categoryIndex)=>{
    if(categoryIndex)pdf.addPage();
-   let y=14;const items=grouped.get(category)||[];
+   let y=14;const items=grouped.get(category)||[],categoryName=categoryLabel(category);
    const selectedCampus=filters.campus?st.campuses.find(c=>c.id===filters.campus)?.name:"All campuses";
    const selectedProgramme=filters.programme?st.programmes.find(p=>p.id===filters.programme)?.name:"All programmes";
    const selectedYear=filters.year?st.academicYears.find(a=>a.id===filters.year)?.name:"All academic years";
@@ -308,17 +309,19 @@ $("#export-pdf").onclick=async()=>{
    pdf.setFontSize(16);pdf.text("STUDENT ATTENDANCE REPORT",14,y);y+=7;
    pdf.setFontSize(8.5);
    pdf.text("Institution: "+String(st.inst?.name||"").slice(0,100),14,y);y+=5;
-   pdf.text("Campus: "+selectedCampus+"    Session category: "+category+"    Generated: "+new Date().toLocaleString(),14,y);y+=5;
+   pdf.text("Campus: "+selectedCampus+"    Session category: "+categoryName+"    Generated: "+new Date().toLocaleString(),14,y);y+=5;
    const department=filters.programme?(st.programmes.find(p=>p.id===filters.programme)?.department||selectedProgramme):"All departments / programmes";
    pdf.text("Department: "+String(department).slice(0,100)+"    Academic year: "+selectedYear+"    Semester: "+selectedSemester,14,y);y+=7;
    pdf.setFontSize(9);
    pdf.text("Summary: Sessions held "+uniqueSessions.length+"   Present "+presentCount+"   Absent "+absentCount+"   Attendance "+percentage+"%",14,y);y+=7;
-   const rows=[["Date","Start","End","Registration no.","Student name","Programme","Course unit","Status"],...items.map(({record:r,session:s})=>{
+   const rows=[["Date","Start","End","Registration no.","Student name","Study year","Academic year","Semester","Programme","Course unit","Status"],...items.map(({record:r,session:s})=>{
     const unit=st.courseUnits.find(u=>u.id===s.courseUnitId),opened=ms(s.openedAt||s.createdAt),ended=ms(s.expiresAt);
     const programme=st.programmes.find(p=>p.id===r.programmeId)?.name||klass(r.classId)||"";
-    return [opened?new Date(opened).toLocaleDateString():"",opened?new Date(opened).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",ended?new Date(ended).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",r.studentNumber||"",r.studentName||"",programme,unit?.name||s.title||"Course session",r.status||""];
+    const academicYear=st.academicYears.find(a=>a.id===(r.academicYearId||s.academicYearId))?.name||r.academicYearId||s.academicYearId||"";
+    const semester=st.semesters.find(a=>a.id===(r.semesterId||s.semesterId))?.name||r.semesterId||s.semesterId||"";
+    return [opened?new Date(opened).toLocaleDateString():"",opened?new Date(opened).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",ended?new Date(ended).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",r.studentNumber||"",r.studentName||"",r.studyYear||s.studyYear||"",academicYear,semester,programme,unit?.name||s.title||"Course session",r.status||""];
    })];
-   const widths=[23,18,18,28,39,42,52,22];pdf.setFontSize(7.5);
+   const widths=[18,15,15,25,32,18,24,20,35,45,18];pdf.setFontSize(7.2);
    for(let ri=0;ri<rows.length;ri++){
     const row=rows[ri];let x=12;const rowH=ri===0?8:6;
     if(y+rowH>177){pdf.addPage();y=14;pdf.setFontSize(7.5)}
