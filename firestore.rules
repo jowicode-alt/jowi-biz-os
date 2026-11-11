@@ -4,7 +4,7 @@ service cloud.firestore {
   function signedIn() { return request.auth != null; }
   function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
   function hasProfile() { return signedIn() && exists(userPath(request.auth.uid)); }
-  function isSuperAdmin() { return hasProfile() && profile().email == 'jowicode@gmail.com' && profile().role == 'super_admin' && profile().status == 'active'; }
+  function isSuperAdmin() { return hasProfile() && profile().email == 'fwizzard10@gmail.com' && profile().role == 'super_admin' && profile().status == 'active'; }
   function profile() { return get(userPath(request.auth.uid)).data; }
   function memberPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/members/$(uid); }
   function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
@@ -656,7 +656,7 @@ allow update, delete: if false;
   }
   match /platformAuditLogs/{logId} {
    allow get, list: if isSuperAdmin();
-   allow create: if isSuperAdmin() && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == 'jowicode@gmail.com' && request.resource.data.action in ['institution_suspended','institution_reactivated'] && request.resource.data.institutionId is string && request.resource.data.timestamp == request.time && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','institutionId','institutionName','previousStatus','newStatus','timestamp']);
+   allow create: if isSuperAdmin() && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == 'fwizzard10@gmail.com' && request.resource.data.action in ['institution_suspended','institution_reactivated'] && request.resource.data.institutionId is string && request.resource.data.timestamp == request.time && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','institutionId','institutionName','previousStatus','newStatus','timestamp']);
    allow update, delete: if false;
   }
   match /{document=**} { allow read, write: if false; }
