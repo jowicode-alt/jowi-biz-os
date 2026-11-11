@@ -100,8 +100,7 @@ service cloud.firestore {
      || (member.get('role','') in ['campus_admin','lecturer']
       && member.get('assignedCampusId','') == classData.get('campusId','')));
   }
-  function canTeach(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin','campus_admin','lecturer']; }
-  function canTeachCampus(id,campusId) {
+    function canTeachCampus(id,campusId) {
    let userRef = userPath(request.auth.uid);
    let memberRef = memberPath(id,request.auth.uid);
    let userFound = signedIn() && exists(userRef);
@@ -151,19 +150,19 @@ service cloud.firestore {
    let yearId = data.get('academicYearId','');
    let semesterId = data.get('semesterId','');
    let classRef = /databases/$(database)/documents/institutions/$(id)/classes/$(classId);
-   let unitRef = /databases/$(database)/documents/institutions/$(id)/courseUnits/$(unitId);
-   let yearRef = /databases/$(database)/documents/institutions/$(id)/academicYears/$(yearId);
-   let semRef = /databases/$(database)/documents/institutions/$(id)/semesters/$(semesterId);
    let classFound = classId is string && classId.size() > 0 && exists(classRef);
-   let unitFound = unitId is string && unitId.size() > 0 && exists(unitRef);
-   let yearFound = yearId is string && yearId.size() > 0 && exists(yearRef);
-   let semFound = semesterId is string && semesterId.size() > 0 && exists(semRef);
    let classData = classFound ? get(classRef).data : {};
    return classFound && classData.get('campusId','') == data.get('campusId','')
-    && unitFound && get(unitRef).data.get('status','') == 'active'
-    && yearFound && get(yearRef).data.get('status','') == 'active'
-    && semFound && get(semRef).data.get('status','') == 'active'
-    && get(semRef).data.get('academicYearId','') == yearId
+    && unitId is string && unitId.size() > 0
+    && exists(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(unitId))
+    && get(/databases/$(database)/documents/institutions/$(id)/courseUnits/$(unitId)).data.get('status','') == 'active'
+    && yearId is string && yearId.size() > 0
+    && exists(/databases/$(database)/documents/institutions/$(id)/academicYears/$(yearId))
+    && get(/databases/$(database)/documents/institutions/$(id)/academicYears/$(yearId)).data.get('status','') == 'active'
+    && semesterId is string && semesterId.size() > 0
+    && exists(/databases/$(database)/documents/institutions/$(id)/semesters/$(semesterId))
+    && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(semesterId)).data.get('status','') == 'active'
+    && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(semesterId)).data.get('academicYearId','') == yearId
     && data.get('studyYear','') is string && data.get('studyYear','').size() > 0;
   }
   function validSessionCreate(id) {
