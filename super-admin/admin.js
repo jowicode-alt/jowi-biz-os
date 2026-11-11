@@ -2,7 +2,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-ap
 import{getAuth,setPersistence,browserSessionPersistence,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import{getFirestore,collection,doc,getDoc,getDocs,query,orderBy,limit,writeBatch,serverTimestamp,updateDoc}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyB-dlQtjt9r_iKrM7GytukIjOPDN_zcBpY",authDomain:"jowi-biz-os.firebaseapp.com",projectId:"jowi-biz-os",storageBucket:"jowi-biz-os.firebasestorage.app",messagingSenderId:"821672776356",appId:"1:821672776356:web:1fd58e0a923807299ccc31"};
-const app=initializeApp(firebaseConfig),superAdminAuthApp=initializeApp(firebaseConfig,"intercampus-super-admin-auth"),auth=getAuth(superAdminAuthApp),db=getFirestore(app),$=s=>document.querySelector(s),safe=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const app=initializeApp(firebaseConfig),superAdminAuthApp=initializeApp(firebaseConfig,"intercampus-super-admin-auth"),auth=getAuth(superAdminAuthApp),db=getFirestore(superAdminAuthApp),$=s=>document.querySelector(s),safe=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 await setPersistence(auth,browserSessionPersistence);
 let institutions=[],selected=null,loadingCount=0;
 function showLoader(message="Please wait…"){loadingCount++;$("#sa-loading-text").textContent=message;show("#sa-loading")}
