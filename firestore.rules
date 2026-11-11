@@ -17,29 +17,26 @@ service cloud.firestore {
   function enrolmentPath(id, uid, courseUnitId) { return /databases/$(database)/documents/institutions/$(id)/enrolments/$(uid + '_' + courseUnitId); }
   function canStudentReadSession(id) {
    let session = resource.data;
-   let studentRef = studentPath(id, request.auth.uid);
    let unitId = session.get('courseUnitId', '');
    let hasUnit = unitId is string && unitId.size() > 0;
    let enrolRef = enrolmentPath(id, request.auth.uid, unitId);
-   let studentFound = exists(studentRef);
-   let student = studentFound ? get(studentRef).data : {};
-   let enrolFound = hasUnit && exists(enrolRef);
-   let enrol = enrolFound ? get(enrolRef).data : {};
+   let student = exists(studentPath(id, request.auth.uid)) ? get(studentPath(id, request.auth.uid)).data : {};
+   let enrol = hasUnit && exists(enrolRef) ? get(enrolRef).data : {};
    let sessionType = session.get('sessionType', session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
-   let cohortMatches = enrol.get('studyYear', '') == session.get('studyYear', '')
-    && enrol.get('academicYearId', '') == session.get('academicYearId', '')
-    && enrol.get('semesterId', '') == session.get('semesterId', '');
    let classMatches = session.get('classId', '') == student.get('classId', '')
     && session.get('campusId', '') == student.get('campusId', '');
    let groupMatches = session.get('sessionGroupMode', 'combined') == 'combined'
     || (session.get('sessionGroupMode', '') == 'separate'
      && enrol.get('teachingGroupId', '') == session.get('teachingGroupId', ''));
-   return inInstitution(id) && memberRole(id) == 'student' && studentFound
-    && ( !hasUnit
+   return inInstitution(id) && memberRole(id) == 'student'
+    && exists(studentPath(id, request.auth.uid))
+    && (!hasUnit
       ? classMatches
-      : enrolFound && enrol.get('status', '') == 'active'
+      : exists(enrolRef) && enrol.get('status', '') == 'active'
        && enrol.get('campusId', '') == session.get('campusId', '')
-       && cohortMatches
+       && enrol.get('studyYear', '') == session.get('studyYear', '')
+       && enrol.get('academicYearId', '') == session.get('academicYearId', '')
+       && enrol.get('semesterId', '') == session.get('semesterId', '')
        && (sessionType == 'class' ? classMatches : sessionType == 'course-unit' && groupMatches));
   }
   function inInstitution(id) {
