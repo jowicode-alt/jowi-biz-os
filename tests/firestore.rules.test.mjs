@@ -96,7 +96,7 @@ try {
   assert.equal(ownEnrolments.size, 1);
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-denied")));
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-closed")));
-  const learnerSessions = await getDocs(query(collection(studentReader, "institutions/inst-1/sessions"), where("status", "==", "active"), where("classId", "==", "class-1"), where("campusId", "==", "campus-1"), where("courseUnitId", "==", "cu-comm")));
+  const learnerSessions = await getDocs(query(collection(studentReader, "institutions/inst-1/sessions"), where("status", "==", "active"), where("sessionType", "==", "class"), where("classId", "==", "class-1"), where("campusId", "==", "campus-1"), where("courseUnitId", "==", "cu-comm"), where("studyYear", "==", "Year 1"), where("academicYearId", "==", "year-2026"), where("semesterId", "==", "semester-1")));
   assert.equal(learnerSessions.size, 1);
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-class-course-unit")));
   await assertSucceeds(setDoc(doc(studentReader, "institutions/inst-1/attendance/session-class-course-unit_student-reader"), { sessionId: "session-class-course-unit", studentId: "student-reader", studentName: "Reader", studentNumber: "R-001", classId: "class-1", courseUnitId: "cu-comm", programmeId: "programme-it", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", enrolmentId: "student-reader_cu-comm", status: "present", deviceId: "device-reader", code: "123456", location: new GeoPoint(0, 0), accuracyMeters: 5, checkedAt: serverTimestamp() }));
