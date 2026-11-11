@@ -88,8 +88,7 @@ function renderAssignedLocation(){
  const assignedCampus=st.campuses.find(x=>x.id===campusId);
  const institutionName=st.inst?.name||"Institution";
  const campusName=assignedCampus?.name||(campusId?"Campus details unavailable":"Campus not assigned");
- const context=$("#account-institution-context");
- if(context){context.classList.toggle("hidden",!isBelowAdmin);setText("#account-institution-name",institutionName);setText("#account-campus-name",campusName);}
+ ["#side-campus","#mobile-campus"].forEach(selector=>{const el=$(selector);if(el){el.textContent=campusName;el.classList.toggle("hidden",!isBelowAdmin);}});
  if(currentRole==="student"){
   setText("#my-campus-name",campusName);
   setText("#my-campus-address",assignedCampus?(assignedCampus.address||assignedCampus.city||"Address not recorded"):(campusId?"Campus address unavailable":"Contact your institution administrator"));
