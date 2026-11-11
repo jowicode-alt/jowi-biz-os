@@ -4,6 +4,7 @@ service cloud.firestore {
   function signedIn() { return request.auth != null; }
   function userPath(uid) { return /databases/$(database)/documents/users/$(uid); }
   function hasProfile() { return signedIn() && exists(userPath(request.auth.uid)); }
+  function isSuperAdmin() { return hasProfile() && profile().email == 'jowicode@gmail.com' && profile().role == 'super_admin' && profile().status == 'active'; }
   function profile() { return get(userPath(request.auth.uid)).data; }
   function memberPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/members/$(uid); }
   function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
@@ -325,8 +326,9 @@ service cloud.firestore {
   }
   match /institutions/{id} {
    allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.institutionCode is string && request.resource.data.institutionCode.matches('^IC-[A-Z0-9]{4}-[A-Z0-9]{4}$') && !exists(/databases/$(database)/documents/institutionCodes/$(request.resource.data.institutionCode)) && existsAfter(/databases/$(database)/documents/institutionCodes/$(request.resource.data.institutionCode)) && getAfter(/databases/$(database)/documents/institutionCodes/$(request.resource.data.institutionCode)).data.institutionId == id && request.resource.data.keys().hasOnly(['institutionCode','name','type','country','timezone','ownerId','status','createdAt','createdBy']);
-   allow read: if inInstitution(id);
-   allow update: if canAdminMembers(id) && request.resource.data.ownerId == resource.data.ownerId;
+   allow get: if inInstitution(id) || isSuperAdmin();
+   allow list: if isSuperAdmin();
+   allow update: if (canAdminMembers(id) && request.resource.data.ownerId == resource.data.ownerId) || (isSuperAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt','updatedBy']) && request.resource.data.status in ['active','suspended'] && request.resource.data.updatedBy == request.auth.uid);
    allow delete: if false;
    match /members/{uid} {
     allow read: if inInstitution(id) && (request.auth.uid == uid || isInstitutionWideStaff(id) || (memberRole(id) == 'campus_admin' && resource.data.get('assignedCampusId','') == assignedCampus(id)));
@@ -650,7 +652,12 @@ allow update, delete: if false;
       && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(request.resource.data.semesterId)).data.academicYearId == request.resource.data.academicYearId;
     allow delete: if false;
    }
-   match /{document=**} { allow read, write: if false; }
+   match /{path=**} { allow read: if isSuperAdmin(); }
+  }
+  match /platformAuditLogs/{logId} {
+   allow get, list: if isSuperAdmin();
+   allow create: if isSuperAdmin() && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == 'jowicode@gmail.com' && request.resource.data.action in ['institution_suspended','institution_reactivated'] && request.resource.data.institutionId is string && request.resource.data.timestamp == request.time && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','institutionId','institutionName','previousStatus','newStatus','timestamp']);
+   allow update, delete: if false;
   }
   match /{document=**} { allow read, write: if false; }
  }
