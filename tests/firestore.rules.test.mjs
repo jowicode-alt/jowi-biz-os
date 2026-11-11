@@ -34,6 +34,9 @@ try {
     await setDoc(doc(db, "institutions/inst-2/members/outsider-1"), { uid: "outsider-1", role: "owner", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/campuses/campus-1"), { name: "Main Campus", city: "Kampala", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/campuses/campus-2"), { name: "Other Campus", city: "Entebbe", timezone: "Africa/Kampala", createdAt: new Date(), createdBy: "owner-1" });
+    await setDoc(doc(db, "institutions/inst-1/teachingGroups/group-1"), { name: "Morning", code: "AM", campusId: "campus-1", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/teachingGroups/group-campus-2"), { name: "Other Campus Morning", code: "AM2", campusId: "campus-2", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/teachingGroups/group-inactive"), { name: "Inactive", code: "OLD", campusId: "campus-1", status: "inactive" });
     await setDoc(doc(db, "institutions/inst-1/classes/class-1"), { name: "Class 1", code: "C1", campusId: "campus-1", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/classes/class-2"), { name: "Class 2", code: "C2", campusId: "campus-2", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "users/student-reader"), { uid: "student-reader", name: "Reader", email: "reader@example.test", institutionId: "inst-1", role: "student", status: "active" });
@@ -89,6 +92,11 @@ try {
   await assertSucceeds(getDoc(doc(studentOtherReader, "institutions/inst-1/sessions/session-shared-course-unit")));
   const sharedSessionNow = Date.now();
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-course-unit-created"), { title: "Shared Communication Skills", campusId: "campus-1", sessionType: "course-unit", courseUnitId: "cu-comm", studyYear: "Year 1", studyYears: ["Year 1", "Year 2"], academicYearId: "year-2026", semesterId: "semester-1", semesterIds: ["semester-1", "semester-2"], cohortKeys: ["Year 1__year-2026__semester-1", "Year 1__year-2026__semester-2", "Year 2__year-2026__semester-1", "Year 2__year-2026__semester-2"], teachingGroupId: "", sessionGroupMode: "combined", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: sharedSessionNow, expiresAt: sharedSessionNow + 45 * 60000, activeCode: "654321", codeUpdatedAt: sharedSessionNow, codeVersion: 1 }));
+  const separateSessionNow = Date.now();
+  const separateUnitSession = { title: "Morning Communication Skills", campusId: "campus-1", sessionType: "course-unit", courseUnitId: "cu-comm", studyYear: "Year 1", studyYears: ["Year 1"], academicYearId: "year-2026", semesterId: "semester-1", semesterIds: ["semester-1"], cohortKeys: ["Year 1__year-2026__semester-1"], teachingGroupId: "group-1", sessionGroupMode: "separate", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: separateSessionNow, expiresAt: separateSessionNow + 45 * 60000, activeCode: "676767", codeUpdatedAt: separateSessionNow, codeVersion: 1 };
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-separate-group-valid"), separateUnitSession));
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-separate-group-wrong-campus"), { ...separateUnitSession, teachingGroupId: "group-campus-2", activeCode: "686868" }));
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-separate-group-inactive"), { ...separateUnitSession, teachingGroupId: "group-inactive", activeCode: "696969" }));
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-shared-course-unit")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-semester")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-study-year")));
