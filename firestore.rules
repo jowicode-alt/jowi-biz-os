@@ -36,9 +36,13 @@ service cloud.firestore {
       : exists(enrolRef) && enrol.get('status', '') == 'active'
        && enrol.get('campusId', '') == session.get('campusId', '')
        && enrol.get('campusId', '') == student.get('campusId', '')
-       && enrol.get('studyYear', '') == session.get('studyYear', '')
+       && session.get('studyYears', [session.get('studyYear','')]) is list
+       && session.get('semesterIds', [session.get('semesterId','')]) is list
+       && session.get('cohortKeys', [session.get('studyYear','') + '__' + session.get('academicYearId','') + '__' + session.get('semesterId','')]) is list
+       && session.get('studyYears', [session.get('studyYear','')]).hasAny([enrol.get('studyYear','')])
+       && session.get('semesterIds', [session.get('semesterId','')]).hasAny([enrol.get('semesterId','')])
+       && session.get('cohortKeys', [session.get('studyYear','') + '__' + session.get('academicYearId','') + '__' + session.get('semesterId','')]).hasAny([enrol.get('studyYear','') + '__' + enrol.get('academicYearId','') + '__' + enrol.get('semesterId','')])
        && enrol.get('academicYearId', '') == session.get('academicYearId', '')
-       && enrol.get('semesterId', '') == session.get('semesterId', '')
        && (sessionType == 'class' ? classMatches : sessionType == 'course-unit' && groupMatches));
   }
   function inInstitution(id) {
@@ -132,6 +136,11 @@ service cloud.firestore {
     && get(/databases/$(database)/documents/institutions/$(id)/semesters/$(semesterId)).data.get('academicYearId','') == yearId
     && data.get('teachingGroupId','') is string
     && data.get('studyYear','') is string && data.get('studyYear','').size() > 0
+    && data.get('studyYears',[]) is list && data.get('studyYears',[]).size() > 0 && data.get('studyYears',[]).size() <= 10
+    && data.get('semesterIds',[]) is list && data.get('semesterIds',[]).size() > 0 && data.get('semesterIds',[]).size() <= 10
+    && data.get('cohortKeys',[]) is list && data.get('cohortKeys',[]).size() == data.get('studyYears',[]).size() * data.get('semesterIds',[]).size()
+    && data.get('studyYears',[]).hasAny([data.get('studyYear','')])
+    && data.get('semesterIds',[]).hasAny([data.get('semesterId','')])
     && data.get('sessionGroupMode','') in ['combined','separate']
     && ((data.get('sessionGroupMode','') == 'combined' && data.get('teachingGroupId','') == '')
      || (data.get('sessionGroupMode','') == 'separate' && data.get('teachingGroupId','').size() > 0));
@@ -170,7 +179,7 @@ service cloud.firestore {
     && data.expiresAt > data.openedAt && data.expiresAt - data.openedAt == data.durationMinutes * 60000
     && data.get('activeCode','') is string && data.activeCode.matches('^[0-9]{6}$')
     && data.get('codeUpdatedAt',null) == data.openedAt && data.get('codeVersion',0) == 1
-    && data.keys().hasOnly(['title','campusId','sessionType','classId','courseUnitId','studyYear','academicYearId','semesterId','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    && data.keys().hasOnly(['title','campusId','sessionType','classId','courseUnitId','studyYear','studyYears','academicYearId','semesterId','semesterIds','cohortKeys','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
   }
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
@@ -463,9 +472,10 @@ service cloud.firestore {
         && enrol.get('studyYear', '') == data.get('studyYear', '')
         && enrol.get('academicYearId', '') == data.get('academicYearId', '')
         && enrol.get('semesterId', '') == data.get('semesterId', '')
-        && session.get('studyYear', '') == data.get('studyYear', '')
+        && session.get('studyYears', [session.get('studyYear','')]).hasAny([data.get('studyYear','')])
+        && session.get('semesterIds', [session.get('semesterId','')]).hasAny([data.get('semesterId','')])
+        && session.get('cohortKeys', [session.get('studyYear','') + '__' + session.get('academicYearId','') + '__' + session.get('semesterId','')]).hasAny([data.get('studyYear','') + '__' + data.get('academicYearId','') + '__' + data.get('semesterId','')])
         && session.get('academicYearId', '') == data.get('academicYearId', '')
-        && session.get('semesterId', '') == data.get('semesterId', '')
         && enrol.get('campusId', '') == session.get('campusId', '')
         && enrol.get('teachingGroupId', '') == data.get('teachingGroupId', '')
         && ((sessionType == 'class' && session.get('classId', '') == data.classId)
@@ -509,11 +519,12 @@ allow update, delete: if false;
      let classMatches = data.get('classId','') == session.get('classId','')
       && data.get('classId','') == student.get('classId','');
      let cohortMatches = enrol.get('studyYear','') == data.get('studyYear','')
-      && enrol.get('studyYear','') == session.get('studyYear','')
+      && session.get('studyYears',[session.get('studyYear','')]).hasAny([enrol.get('studyYear','')])
       && enrol.get('academicYearId','') == data.get('academicYearId','')
       && enrol.get('academicYearId','') == session.get('academicYearId','')
+      && session.get('semesterIds',[session.get('semesterId','')]).hasAny([enrol.get('semesterId','')])
       && enrol.get('semesterId','') == data.get('semesterId','')
-      && enrol.get('semesterId','') == session.get('semesterId','');
+      && session.get('cohortKeys',[session.get('studyYear','') + '__' + session.get('academicYearId','') + '__' + session.get('semesterId','')]).hasAny([enrol.get('studyYear','') + '__' + enrol.get('academicYearId','') + '__' + enrol.get('semesterId','')]);
      let groupMatches = session.get('sessionGroupMode','combined') == 'combined'
       || (session.get('sessionGroupMode','') == 'separate'
        && enrol.get('teachingGroupId','') == session.get('teachingGroupId',''));
