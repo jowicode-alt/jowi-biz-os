@@ -147,14 +147,24 @@ service cloud.firestore {
   }
   function validClassSessionCreate(id,data) {
    let classId = data.get('classId','');
-   let ref = /databases/$(database)/documents/institutions/$(id)/classes/$(classId);
-   let found = classId is string && classId.size() > 0 && exists(ref);
-   let classData = found ? get(ref).data : {};
-   return found && classData.get('campusId','') == data.get('campusId','')
-    && data.get('courseUnitId','') is string && data.get('courseUnitId','').size() > 0
-    && data.get('studyYear','') is string && data.get('studyYear','').size() > 0
-    && data.get('academicYearId','') is string && data.get('academicYearId','').size() > 0
-    && data.get('semesterId','') is string && data.get('semesterId','').size() > 0;
+   let unitId = data.get('courseUnitId','');
+   let yearId = data.get('academicYearId','');
+   let semesterId = data.get('semesterId','');
+   let classRef = /databases/$(database)/documents/institutions/$(id)/classes/$(classId);
+   let unitRef = /databases/$(database)/documents/institutions/$(id)/courseUnits/$(unitId);
+   let yearRef = /databases/$(database)/documents/institutions/$(id)/academicYears/$(yearId);
+   let semRef = /databases/$(database)/documents/institutions/$(id)/semesters/$(semesterId);
+   let classFound = classId is string && classId.size() > 0 && exists(classRef);
+   let unitFound = unitId is string && unitId.size() > 0 && exists(unitRef);
+   let yearFound = yearId is string && yearId.size() > 0 && exists(yearRef);
+   let semFound = semesterId is string && semesterId.size() > 0 && exists(semRef);
+   let classData = classFound ? get(classRef).data : {};
+   return classFound && classData.get('campusId','') == data.get('campusId','')
+    && unitFound && get(unitRef).data.get('status','') == 'active'
+    && yearFound && get(yearRef).data.get('status','') == 'active'
+    && semFound && get(semRef).data.get('status','') == 'active'
+    && get(semRef).data.get('academicYearId','') == yearId
+    && data.get('studyYear','') is string && data.get('studyYear','').size() > 0;
   }
   function validSessionCreate(id) {
    let data = request.resource.data;
@@ -166,7 +176,7 @@ service cloud.firestore {
    return canTeachCampus(id,campusId) && data.get('createdBy','') == request.auth.uid
     && data.get('status','') == 'active' && data.get('title','') is string && data.get('title','').size() > 0
     && campusId is string && campusId.size() > 0
-    && ((unitSession && validCourseUnitSessionCreate(id,data)) || (classSession && validClassSessionCreate(id,data)))
+    && ((classSession && validClassSessionCreate(id,data)) || (!classSession && unitSession && validCourseUnitSessionCreate(id,data)))
     && data.get('durationMinutes',0) in [30,45,60,90,120] && data.get('requiresGps',false) is bool
     && (!data.get('requiresGps',false) || (data.get('location',null) is latlng
      && data.get('radiusMeters',0) is number && data.get('radiusMeters',0) >= 25 && data.get('radiusMeters',0) <= 500))
