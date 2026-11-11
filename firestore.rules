@@ -143,7 +143,11 @@ service cloud.firestore {
     && data.get('semesterIds',[]).hasAny([data.get('semesterId','')])
     && data.get('sessionGroupMode','') in ['combined','separate']
     && ((data.get('sessionGroupMode','') == 'combined' && data.get('teachingGroupId','') == '')
-     || (data.get('sessionGroupMode','') == 'separate' && data.get('teachingGroupId','').size() > 0));
+     || (data.get('sessionGroupMode','') == 'separate'
+      && data.get('teachingGroupId','').size() > 0
+      && exists(/databases/$(database)/documents/institutions/$(id)/teachingGroups/$(data.get('teachingGroupId','')))
+      && get(/databases/$(database)/documents/institutions/$(id)/teachingGroups/$(data.get('teachingGroupId',''))).data.get('campusId','') == data.get('campusId','')
+      && get(/databases/$(database)/documents/institutions/$(id)/teachingGroups/$(data.get('teachingGroupId',''))).data.get('status','') == 'active'));
   }
   function validClassSessionCreate(id,data) {
    let classId = data.get('classId','');
