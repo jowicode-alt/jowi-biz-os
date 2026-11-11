@@ -31,7 +31,10 @@ service cloud.firestore {
       && (
        (resource.data.get('sessionType', resource.data.keys().hasAny(['classId']) ? 'class' : 'course-unit') == 'class'
         && resource.data.classId == ownStudent(id).classId
-        && resource.data.campusId == ownStudent(id).campusId)
+        && resource.data.campusId == ownStudent(id).campusId
+        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('studyYear', '') == resource.data.get('studyYear', '')
+        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('academicYearId', '') == resource.data.get('academicYearId', '')
+        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('semesterId', '') == resource.data.get('semesterId', ''))
        ||
        (resource.data.get('sessionType', resource.data.keys().hasAny(['classId']) ? 'class' : 'course-unit') == 'course-unit'
         && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('academicYearId', '') == resource.data.get('academicYearId', '')
@@ -137,6 +140,7 @@ service cloud.firestore {
     && semFound && get(semRef).data.get('status','') == 'active'
     && get(semRef).data.get('academicYearId','') == yearId
     && data.get('teachingGroupId','') is string
+    && data.get('studyYear','') is string && data.get('studyYear','').size() > 0
     && data.get('sessionGroupMode','') in ['combined','separate']
     && ((data.get('sessionGroupMode','') == 'combined' && data.get('teachingGroupId','') == '')
      || (data.get('sessionGroupMode','') == 'separate' && data.get('teachingGroupId','').size() > 0));
@@ -146,7 +150,11 @@ service cloud.firestore {
    let ref = /databases/$(database)/documents/institutions/$(id)/classes/$(classId);
    let found = classId is string && classId.size() > 0 && exists(ref);
    let classData = found ? get(ref).data : {};
-   return found && classData.get('campusId','') == data.get('campusId','');
+   return found && classData.get('campusId','') == data.get('campusId','')
+    && data.get('courseUnitId','') is string && data.get('courseUnitId','').size() > 0
+    && data.get('studyYear','') is string && data.get('studyYear','').size() > 0
+    && data.get('academicYearId','') is string && data.get('academicYearId','').size() > 0
+    && data.get('semesterId','') is string && data.get('semesterId','').size() > 0;
   }
   function validSessionCreate(id) {
    let data = request.resource.data;
@@ -166,7 +174,7 @@ service cloud.firestore {
     && data.expiresAt > data.openedAt && data.expiresAt - data.openedAt == data.durationMinutes * 60000
     && data.get('activeCode','') is string && data.activeCode.matches('^[0-9]{6}$')
     && data.get('codeUpdatedAt',null) == data.openedAt && data.get('codeVersion',0) == 1
-    && data.keys().hasOnly(['title','campusId','classId','courseUnitId','academicYearId','semesterId','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    && data.keys().hasOnly(['title','campusId','classId','courseUnitId','studyYear','academicYearId','semesterId','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
   }
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
@@ -418,7 +426,7 @@ service cloud.firestore {
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
          function attendancePayloadValid(data, docId) {
-      return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+      return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','studyYear','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
        && data.sessionId is string && data.studentId is string
        && data.studentName is string && data.studentNumber is string
        && data.classId is string && data.status == 'present'
@@ -456,6 +464,7 @@ service cloud.firestore {
         && data.get('enrolmentId', '') == data.studentId + '_' + unitId
         && enrol.get('status', '') == 'active'
         && enrol.get('programmeId', '') == data.get('programmeId', '')
+        && enrol.get('studyYear', '') == data.get('studyYear', '')
         && enrol.get('academicYearId', '') == data.get('academicYearId', '')
         && enrol.get('semesterId', '') == data.get('semesterId', '')
         && enrol.get('campusId', '') == session.get('campusId', '')
