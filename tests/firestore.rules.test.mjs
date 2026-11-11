@@ -90,6 +90,7 @@ try {
   await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/session-course-unit-created"), { title: "Shared Communication Skills", campusId: "campus-1", courseUnitId: "cu-comm", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", sessionGroupMode: "combined", status: "active", durationMinutes: 45, requiresGps: false, createdAt: serverTimestamp(), createdBy: "owner-1", openedAt: sharedSessionNow, expiresAt: sharedSessionNow + 45 * 60000, activeCode: "654321", codeUpdatedAt: sharedSessionNow, codeVersion: 1 }));
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-shared-course-unit")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-semester")));
+  await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-study-year")));
   const ownEnrolments = await getDocs(query(collection(studentReader, "institutions/inst-1/enrolments"), where("studentUid", "==", "student-reader"), where("status", "==", "active")));
   assert.equal(ownEnrolments.size, 1);
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-student-denied")));
