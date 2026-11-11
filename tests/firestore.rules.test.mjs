@@ -104,6 +104,7 @@ try {
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-separate-group-inactive"), { ...separateUnitSession, teachingGroupId: "group-inactive", activeCode: "696969" }));
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-shared-course-unit")));
   await assertSucceeds(getDoc(doc(studentYear2Reader, "institutions/inst-1/sessions/session-course-unit-created")));
+  await assertSucceeds(setDoc(doc(studentYear2Reader, "institutions/inst-1/attendance/session-course-unit-created_student-year2-reader"), { sessionId: "session-course-unit-created", studentId: "student-year2-reader", studentName: "Year 2 Reader", studentNumber: "Y2-001", classId: "class-1", courseUnitId: "cu-comm", programmeId: "programme-it", studyYear: "Year 2", academicYearId: "year-2026", semesterId: "semester-2", teachingGroupId: "", enrolmentId: "student-year2-reader_cu-comm", status: "present", deviceId: "device-year2", code: "654321", location: new GeoPoint(0, 0), accuracyMeters: 5, checkedAt: serverTimestamp() }));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-semester")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-study-year")));
   const ownEnrolments = await getDocs(query(collection(studentReader, "institutions/inst-1/enrolments"), where("studentUid", "==", "student-reader"), where("status", "==", "active")));
