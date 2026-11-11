@@ -168,7 +168,7 @@ service cloud.firestore {
    let unitSession = unitId is string && unitId.size() > 0;
    let classSession = classId is string && classId.size() > 0;
    return canTeachCampus(id,campusId) && data.get('createdBy','') == request.auth.uid
-    && data.get('status','') == 'active' && data.get('title','') is string && data.get('title','').size() > 0
+    && data.get('status','') == 'active' && ((classSession && data.get('sessionType','') == 'class') || (!classSession && data.get('sessionType','') == 'course-unit')) && data.get('title','') is string && data.get('title','').size() > 0
     && campusId is string && campusId.size() > 0
     && ((classSession && validClassSessionCreate(id,data)) || (!classSession && unitSession && validCourseUnitSessionCreate(id,data)))
     && data.get('durationMinutes',0) in [30,45,60,90,120] && data.get('requiresGps',false) is bool
@@ -178,7 +178,7 @@ service cloud.firestore {
     && data.expiresAt > data.openedAt && data.expiresAt - data.openedAt == data.durationMinutes * 60000
     && data.get('activeCode','') is string && data.activeCode.matches('^[0-9]{6}$')
     && data.get('codeUpdatedAt',null) == data.openedAt && data.get('codeVersion',0) == 1
-    && data.keys().hasOnly(['title','campusId','classId','courseUnitId','studyYear','academicYearId','semesterId','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
+    && data.keys().hasOnly(['title','campusId','sessionType','classId','courseUnitId','studyYear','academicYearId','semesterId','teachingGroupId','sessionGroupMode','status','durationMinutes','requiresGps','location','radiusMeters','createdAt','createdBy','openedAt','expiresAt','activeCode','codeUpdatedAt','codeVersion']);
   }
   match /users/{uid} {
    allow get: if signedIn() && request.auth.uid == uid;
