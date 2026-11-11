@@ -289,6 +289,62 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sessionType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "courseUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "campusId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "cohortKeys",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "sessionGroupMode",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sessionType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "courseUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "campusId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "cohortKeys",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "sessionGroupMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "teachingGroupId",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
