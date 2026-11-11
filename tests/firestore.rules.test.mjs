@@ -15,6 +15,7 @@ const unauth = env.unauthenticatedContext().firestore();
 const invitedStudent = env.authenticatedContext("student-new", { email: "student-new@example.test" }).firestore();
 const studentReader = env.authenticatedContext("student-reader", { email: "reader@example.test" }).firestore();
 const studentOtherReader = env.authenticatedContext("student-other", { email: "other@example.test" }).firestore();
+const studentYear2Reader = env.authenticatedContext("student-year2-reader", { email: "year2@example.test" }).firestore();
 
 try {
   await env.withSecurityRulesDisabled(async ctx => {
@@ -54,6 +55,10 @@ try {
     await setDoc(doc(db, "institutions/inst-1/semesters/semester-1"), { name: "Semester 1", academicYearId: "year-2026", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/semesters/semester-2"), { name: "Semester 2", academicYearId: "year-2026", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-reader_cu-comm"), { studentUid: "student-reader", courseUnitId: "cu-comm", programmeId: "programme-it", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
+    await setDoc(doc(db, "users/student-year2-reader"), { uid: "student-year2-reader", name: "Year 2 Reader", email: "year2@example.test", institutionId: "inst-1", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/members/student-year2-reader"), { uid: "student-year2-reader", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/students/student-year2-reader"), { authUid: "student-year2-reader", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-year2" });
+    await setDoc(doc(db, "institutions/inst-1/enrolments/student-year2-reader_cu-comm"), { studentUid: "student-year2-reader", courseUnitId: "cu-comm", programmeId: "programme-it", studyYear: "Year 2", academicYearId: "year-2026", semesterId: "semester-2", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-shared-course-unit"), { status: "active", courseUnitId: "cu-comm", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-class-course-unit"), { status: "active", sessionType: "class", classId: "class-1", courseUnitId: "cu-comm", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", activeCode: "123456", codeUpdatedAt: Date.now(), expiresAt: Date.now() + 60000 });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-course-unit-wrong-semester"), { status: "active", courseUnitId: "cu-comm", academicYearId: "year-2026", semesterId: "semester-2", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
@@ -98,6 +103,7 @@ try {
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-separate-group-wrong-campus"), { ...separateUnitSession, teachingGroupId: "group-campus-2", activeCode: "686868" }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-separate-group-inactive"), { ...separateUnitSession, teachingGroupId: "group-inactive", activeCode: "696969" }));
   await assertSucceeds(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-shared-course-unit")));
+  await assertSucceeds(getDoc(doc(studentYear2Reader, "institutions/inst-1/sessions/session-course-unit-created")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-semester")));
   await assertFails(getDoc(doc(studentReader, "institutions/inst-1/sessions/session-course-unit-wrong-study-year")));
   const ownEnrolments = await getDocs(query(collection(studentReader, "institutions/inst-1/enrolments"), where("studentUid", "==", "student-reader"), where("status", "==", "active")));
