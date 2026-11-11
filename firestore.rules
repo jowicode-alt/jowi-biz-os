@@ -49,15 +49,10 @@ service cloud.firestore {
   function inInstitution(id) {
    let userRef = userPath(request.auth.uid);
    let memberRef = memberPath(id, request.auth.uid);
-   let institutionRef = /databases/$(database)/documents/institutions/$(id);
    let userExists = signedIn() && exists(userRef);
    let memberExists = signedIn() && exists(memberRef);
-   let institutionExists = exists(institutionRef);
    let user = userExists ? get(userRef).data : {};
-   let institution = institutionExists ? get(institutionRef).data : {};
-   return signedIn() && userExists && memberExists && institutionExists
-     && user.get('institutionId','') == id
-     && institution.get('status','') != 'suspended';
+   return signedIn() && userExists && memberExists && user.get('institutionId','') == id;
   }
   function memberRole(id) { return get(memberPath(id, request.auth.uid)).data.role; }
   function canAdminMembers(id) { return inInstitution(id) && memberRole(id) in ['owner','institution_admin']; }
