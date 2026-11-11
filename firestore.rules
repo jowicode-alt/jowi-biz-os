@@ -16,35 +16,31 @@ service cloud.firestore {
   function canStudentReadClass(id, classId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).classId == classId; }
   function enrolmentPath(id, uid, courseUnitId) { return /databases/$(database)/documents/institutions/$(id)/enrolments/$(uid + '_' + courseUnitId); }
   function canStudentReadSession(id) {
-   return inInstitution(id)
-    && memberRole(id) == 'student'
-    && hasOwnStudent(id)
-    && (
-     (!resource.data.keys().hasAny(['courseUnitId'])
-      && resource.data.classId == ownStudent(id).classId
-      && resource.data.campusId == ownStudent(id).campusId)
-     ||
-     (resource.data.courseUnitId is string
-      && exists(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId))
-      && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.status == 'active'
-      && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.campusId == resource.data.campusId
-      && (
-       (resource.data.get('sessionType', resource.data.keys().hasAny(['classId']) ? 'class' : 'course-unit') == 'class'
-        && resource.data.classId == ownStudent(id).classId
-        && resource.data.campusId == ownStudent(id).campusId
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('studyYear', '') == resource.data.get('studyYear', '')
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('academicYearId', '') == resource.data.get('academicYearId', '')
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('semesterId', '') == resource.data.get('semesterId', ''))
-       ||
-       (resource.data.get('sessionType', resource.data.keys().hasAny(['classId']) ? 'class' : 'course-unit') == 'course-unit'
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('academicYearId', '') == resource.data.get('academicYearId', '')
-        && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('semesterId', '') == resource.data.get('semesterId', '')
-        && (resource.data.get('sessionGroupMode', 'combined') == 'combined'
-         || (resource.data.get('sessionGroupMode', 'separate') == 'separate'
-          && get(enrolmentPath(id, request.auth.uid, resource.data.courseUnitId)).data.get('teachingGroupId', '') == resource.data.get('teachingGroupId', ''))))
-      )
-     )
-    );
+   let session = resource.data;
+   let studentRef = studentPath(id, request.auth.uid);
+   let unitId = session.get('courseUnitId', '');
+   let hasUnit = unitId is string && unitId.size() > 0;
+   let enrolRef = enrolmentPath(id, request.auth.uid, unitId);
+   let studentFound = exists(studentRef);
+   let student = studentFound ? get(studentRef).data : {};
+   let enrolFound = hasUnit && exists(enrolRef);
+   let enrol = enrolFound ? get(enrolRef).data : {};
+   let sessionType = session.get('sessionType', session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
+   let cohortMatches = enrol.get('studyYear', '') == session.get('studyYear', '')
+    && enrol.get('academicYearId', '') == session.get('academicYearId', '')
+    && enrol.get('semesterId', '') == session.get('semesterId', '');
+   let classMatches = session.get('classId', '') == student.get('classId', '')
+    && session.get('campusId', '') == student.get('campusId', '');
+   let groupMatches = session.get('sessionGroupMode', 'combined') == 'combined'
+    || (session.get('sessionGroupMode', '') == 'separate'
+     && enrol.get('teachingGroupId', '') == session.get('teachingGroupId', ''));
+   return inInstitution(id) && memberRole(id) == 'student' && studentFound
+    && ( !hasUnit
+      ? classMatches
+      : enrolFound && enrol.get('status', '') == 'active'
+       && enrol.get('campusId', '') == session.get('campusId', '')
+       && cohortMatches
+       && (sessionType == 'class' ? classMatches : sessionType == 'course-unit' && groupMatches));
   }
   function inInstitution(id) {
    let userRef = userPath(request.auth.uid);
@@ -515,23 +511,30 @@ allow update, delete: if false;
     function absencePlacementValid(id,data,session,student) {
      let unitId = data.get('courseUnitId','');
      let hasUnit = unitId is string && unitId.size() > 0;
-     let enrolRef = /databases/$(database)/documents/institutions/$(id)/enrolments/$(data.studentId + '_' + unitId);
+     let enrolRef = enrolmentPath(id, data.studentId, unitId);
      let enrolExists = hasUnit && exists(enrolRef);
      let enrol = enrolExists ? get(enrolRef).data : {};
      let sessionType = session.get('sessionType',session.keys().hasAny(['classId']) ? 'class' : 'course-unit');
+     let classMatches = data.get('classId','') == session.get('classId','')
+      && data.get('classId','') == student.get('classId','');
+     let cohortMatches = enrol.get('studyYear','') == data.get('studyYear','')
+      && enrol.get('studyYear','') == session.get('studyYear','')
+      && enrol.get('academicYearId','') == data.get('academicYearId','')
+      && enrol.get('academicYearId','') == session.get('academicYearId','')
+      && enrol.get('semesterId','') == data.get('semesterId','')
+      && enrol.get('semesterId','') == session.get('semesterId','');
+     let groupMatches = session.get('sessionGroupMode','combined') == 'combined'
+      || (session.get('sessionGroupMode','') == 'separate'
+       && enrol.get('teachingGroupId','') == session.get('teachingGroupId',''));
      return !hasUnit
-      ? data.get('classId','') == session.get('classId','') && data.get('classId','') == student.get('classId','')
+      ? classMatches
       : session.get('courseUnitId','') == unitId && enrolExists
        && enrol.get('status','') == 'active'
        && enrol.get('campusId','') == session.get('campusId','')
-       && enrol.get('academicYearId','') == data.get('academicYearId','')
-       && enrol.get('semesterId','') == data.get('semesterId','')
-       && ((sessionType == 'class'
-         && data.get('classId','') == session.get('classId','')
-         && data.get('classId','') == student.get('classId',''))
-        || (sessionType == 'course-unit'
-         && (session.get('sessionGroupMode','') == 'combined'
-          || enrol.get('teachingGroupId','') == session.get('teachingGroupId',''))));
+       && enrol.get('programmeId','') == data.get('programmeId','')
+       && data.get('enrolmentId','') == data.studentId + '_' + unitId
+       && cohortMatches
+       && (sessionType == 'class' ? classMatches : sessionType == 'course-unit' && groupMatches);
     }
     function validAbsenceCreate(id,docId) {
      let data = request.resource.data;
@@ -541,7 +544,7 @@ allow update, delete: if false;
      let studentFound = exists(studentRef);
      let session = sessionFound ? get(sessionRef).data : {};
      let student = studentFound ? get(studentRef).data : {};
-     return signedIn() && inInstitution(id) && data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','academicYearId','semesterId','teachingGroupId','enrolmentId','status','finalizedBy','finalizedAt'])
+     return signedIn() && inInstitution(id) && data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','studyYear','academicYearId','semesterId','teachingGroupId','enrolmentId','status','finalizedBy','finalizedAt'])
       && data.get('status','') == 'absent' && data.get('finalizedBy','') == request.auth.uid
       && data.get('finalizedAt',null) == request.time
       && docId == data.get('sessionId','') + '_' + data.get('studentId','')
