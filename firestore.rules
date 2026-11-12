@@ -608,7 +608,7 @@ allow update, delete: if false;
       && data.get('finalizedAt',null) == request.time
       && docId == data.get('sessionId','') + '_' + data.get('studentId','')
       && sessionFound && session.get('createdBy','') == request.auth.uid
-      && session.get('status','') == 'active' && session.get('expiresAt',0) <= request.time.toMillis()
+      && session.get('status','') == 'active'
       && studentFound && student.get('authUid','') == data.get('studentId','')
       && student.get('status','') == 'active'
       && student.get('campusId','') == session.get('campusId','')
