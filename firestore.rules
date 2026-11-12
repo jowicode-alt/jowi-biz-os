@@ -16,6 +16,31 @@ service cloud.firestore {
   function canStudentReadCampus(id, campusId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).campusId == campusId; }
   function canStudentReadClass(id, classId) { return inInstitution(id) && memberRole(id) == 'student' && hasOwnStudent(id) && ownStudent(id).classId == classId; }
   function enrolmentPath(id, uid, courseUnitId) { return /databases/$(database)/documents/institutions/$(id)/enrolments/$(uid + '_' + courseUnitId); }
+  function validStudentFeedCreate(id,studentUid,sessionId) {
+   let sessionRef=/databases/$(database)/documents/institutions/$(id)/sessions/$(sessionId);
+   let studentRef=studentPath(id,studentUid);
+   let found=exists(sessionRef)&&exists(studentRef);
+   let session=found?get(sessionRef).data:{};
+   let student=found?get(studentRef).data:{};
+   let unit=session.get('courseUnitId','');
+   let enrolRef=enrolmentPath(id,studentUid,unit);
+   let hasEnrol=unit is string&&unit.size()>0&&exists(enrolRef);
+   let enrol=hasEnrol?get(enrolRef).data:{};
+   let cohort=enrol.get('studyYear','')+'__'+enrol.get('academicYearId','')+'__'+enrol.get('semesterId','');
+   let years=session.get('studyYears',[session.get('studyYear','')]);
+   let semesters=session.get('semesterIds',[session.get('semesterId','')]);
+   let keys=session.get('cohortKeys',[cohort]);
+   return found&&hasEnrol&&canManageSession(id,session)&&session.get('createdBy','')==request.auth.uid
+    &&student.get('status','')=='active'&&student.get('campusId','')==session.get('campusId','')
+    &&enrol.get('status','')=='active'&&enrol.get('studentUid','')==studentUid
+    &&enrol.get('courseUnitId','')==unit&&enrol.get('campusId','')==session.get('campusId','')
+    &&enrol.get('academicYearId','')==session.get('academicYearId','')
+    &&years is list&&years.hasAny([enrol.get('studyYear','')])
+    &&semesters is list&&semesters.hasAny([enrol.get('semesterId','')])
+    &&keys is list&&keys.hasAny([cohort])
+    &&(session.get('sessionType','')!='class'||session.get('classId','')==student.get('classId',''))
+    &&(session.get('sessionGroupMode','combined')=='combined'||enrol.get('teachingGroupId','')==session.get('teachingGroupId',''));
+  }
   function canStudentReadSession(id) {
    let session = resource.data;
    let uid = request.auth == null ? 'no-auth' : request.auth.uid;
@@ -259,6 +284,15 @@ service cloud.firestore {
        && getAfter(invitePath(request.auth.token.email, request.resource.data.institutionId)).data.institutionCode == request.resource.data.institutionCode)
     );
    allow update, delete: if false;
+  }
+  match /institutions/{id}/studentSessionFeeds/{studentUid}/sessions/{sessionId} {
+   allow get,list: if signedIn()&&request.auth.uid==studentUid&&inInstitution(id)&&memberRole(id)=='student';
+   allow create: if request.resource.data.sessionId==sessionId&&request.resource.data.createdBy==request.auth.uid
+    &&request.resource.data.campusId is string&&request.resource.data.courseUnitId is string
+    &&request.resource.data.createdAt is timestamp
+    &&request.resource.data.keys().hasOnly(['sessionId','campusId','courseUnitId','createdBy','createdAt'])
+    &&validStudentFeedCreate(id,studentUid,sessionId);
+   allow update,delete: if false;
   }
   match /institutions/{id}/accessRequests/{uid} {
    allow create, update: if signedIn() && request.auth.uid == uid
