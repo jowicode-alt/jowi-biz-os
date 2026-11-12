@@ -56,7 +56,7 @@ function setupLiveSync(){
    st.studentSessionUnsubs.forEach(off=>{try{off()}catch{}});st.studentSessionUnsubs=[];
    const learner=st.students.find(x=>x.authUid===st.user.uid||x.id===st.user.uid)||st.students[0],items=new Map(),listeners=new Map();
    st.sessions=[];
-   const publish=()=>{st.sessions=[...items.values()].filter(s=>s.status==="active"&&Number(s.expiresAt)>Date.now()&&s.campusId===campusId&&(st.enrolments||[]).some(en=>sessionMatchesEnrolment(s,en,learner?.classId)));render()};
+   const publish=()=>{st.sessions=[...items.values()].filter(s=>s.campusId===campusId&&(st.enrolments||[]).some(en=>sessionMatchesEnrolment(s,en,learner?.classId)));render()};
    const feed=collection(db,"institutions",institutionId,"studentSessionFeeds",st.user.uid,"sessions");
    const off=onSnapshot(feed,snap=>{const ids=new Set(snap.docs.map(d=>d.id));for(const [id,stop] of listeners){if(!ids.has(id)){stop();listeners.delete(id);items.delete(id)}}snap.docs.forEach(d=>{if(listeners.has(d.id))return;const stop=onSnapshot(doc(db,"institutions",institutionId,"sessions",d.id),ss=>{if(ss.exists())items.set(d.id,{id:ss.id,...ss.data()});else items.delete(d.id);publish()},error=>{console.error("Student session read failed",error);msg("student-checkin-message","A session could not be loaded ("+(error.code||"sync error")+").")});listeners.set(d.id,stop)});publish()},error=>{console.error("Student feed listener failed",error);msg("student-checkin-message","Live session updates could not be loaded ("+(error.code||"sync error")+").")});
    st.studentSessionUnsubs.push(()=>{off();listeners.forEach(stop=>stop());listeners.clear()});
