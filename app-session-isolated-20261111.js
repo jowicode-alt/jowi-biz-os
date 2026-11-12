@@ -54,7 +54,7 @@ function setupLiveSync(){
  }
  const scoped=["campus_admin","lecturer"].includes(currentRole);if(scoped&&!campusId)return;
  if(scoped)watch(doc(db,"institutions",institutionId,"campuses",campusId),snap=>{st.campuses=snap.exists()?[{id:snap.id,...snap.data()}]:[];render()});
- watchList("campuses",scoped?query(col("campuses"),where("__name__","==",campusId)):col("campuses"));
+ if(!scoped)watchList("campuses",col("campuses"));
  watchList("classes",scoped?query(col("classes"),where("campusId","==",campusId)):col("classes"));
  watchList("students",scoped?query(col("students"),where("campusId","==",campusId)):col("students"));
  watchList("sessions",scoped?query(col("sessions"),where("campusId","==",campusId)):col("sessions"));
