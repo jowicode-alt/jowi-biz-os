@@ -493,7 +493,7 @@ $("#student-checkin-form")?.addEventListener("submit",async e=>{
  const checked=(promise,label)=>withTimeout(promise,15000,label+" is taking too long. Check your internet connection and try again.");
  try{
   const institutionId=st.profile.institutionId,sessionId=$("#checkin-session-id").value.trim(),code=$("#checkin-code").value.trim(),studentId=st.user.uid,deviceId=deviceToken(st.user.uid);
-  if(!/^\\d{6}$/.test(code))throw Error("Enter the six-digit session code or scan the QR code.");
+  if(!/^\d{6}$/.test(code))throw Error("Enter the six-digit session code or scan the QR code.");
   phase("Checking your learner account and session…");
   const [studentSnap,sessionSnap]=await checked(Promise.all([getDoc(doc(db,"institutions",institutionId,"students",studentId)),getDoc(doc(db,"institutions",institutionId,"sessions",sessionId))]),"Account/session verification");
   if(!studentSnap.exists()||!sessionSnap.exists())throw Error("Your learner record or session was not found. Contact your administrator if this continues.");
