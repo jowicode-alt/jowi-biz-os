@@ -202,7 +202,13 @@ function studentSessionQueryRefs(enrolments,learner,campusId){
  return refs;
 }
 async function fetchStudentSessions(enrolments,learner,campusId){const uid=st.user.uid,id=st.profile.institutionId;const feed=await getDocs(collection(db,"institutions",id,"studentSessionFeeds",uid,"sessions"));const docs=await Promise.all(feed.docs.map(x=>getDoc(doc(db,"institutions",id,"sessions",x.id))));return docs.filter(x=>x.exists()).map(x=>({id:x.id,...x.data()})).filter(s=>s.status==="active"&&Number(s.expiresAt)>Date.now()&&s.campusId===campusId&&(enrolments||[]).some(en=>sessionMatchesEnrolment(s,en,learner?.classId)))}
-async function publishSessionToStudentFeeds(sessionId,session){const ids=new Set();for(const en of st.enrolments||[]){const uid=en.studentUid||en.authUid,student=st.students.find(x=>x.id===uid||x.authUid===uid);if(en.status==="active"&&student&&student.status!=="inactive"&&student.campusId===session.campusId&&sessionMatchesEnrolment(session,en,student.classId))ids.add(uid)}const list=[...ids],id=st.profile.institutionId,createdBy=st.user.uid;for(let i=0;i<list.length;i+=400){const batch=writeBatch(db);for(const uid of list.slice(i,i+400))batch.set(doc(db,"institutions",id,"studentSessionFeeds",uid,"sessions",sessionId),{sessionId,campusId:session.campusId,courseUnitId:session.courseUnitId,createdBy,createdAt:serverTimestamp()});await batch.commit()}return list.length}
+async function publishSessionToStudentFeeds(sessionId,session){
+ const ids=new Set();
+ for(const en of st.enrolments||[]){const uid=en.studentUid||en.authUid,student=st.students.find(x=>x.id===uid||x.authUid===uid);if(en.status==="active"&&student&&student.status!=="inactive"&&student.campusId===session.campusId&&sessionMatchesEnrolment(session,en,student.classId))ids.add(uid)}
+ const list=[...ids],institutionId=st.profile.institutionId,createdBy=st.user.uid;
+ await Promise.all(list.map(studentUid=>setDoc(doc(db,"institutions",institutionId,"studentSessionFeeds",studentUid,"sessions",sessionId),{sessionId,campusId:session.campusId,courseUnitId:session.courseUnitId,createdBy,createdAt:serverTimestamp()})));
+ return list.length;
+}
 function sessionHasEnded(s){return s.status==="closed"||Number(s.expiresAt)<=Date.now()}
 function sessionMatchesEnrolment(s,en,studentClassId=""){
  if(!s||!en||en.status!=="active"||s.courseUnitId!==en.courseUnitId||s.campusId!==en.campusId)return false;
