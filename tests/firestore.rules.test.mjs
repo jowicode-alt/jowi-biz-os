@@ -240,15 +240,18 @@ try {
   }));
 
   // A session owner can publish an eligible active session to the learner's private live feed.
-  const privateFeedRef = doc(owner, "institutions/inst-1/studentSessionFeeds/student-other/sessions/session-valid");
-  const privateFeed = { sessionId: "session-valid", campusId: "campus-1", courseUnitId: "cu-comm", createdBy: "owner-1", createdAt: serverTimestamp() };
+  // Use a dedicated active session because session-valid is intentionally closed in the tests above.
+  const feedSessionId = "session-feed-valid";
+  await assertSucceeds(setDoc(doc(owner, "institutions/inst-1/sessions/" + feedSessionId), { ...validSession, activeCode: "919191" }));
+  const privateFeedRef = doc(owner, "institutions/inst-1/studentSessionFeeds/student-other/sessions/" + feedSessionId);
+  const privateFeed = { sessionId: feedSessionId, campusId: "campus-1", courseUnitId: "cu-comm", createdBy: "owner-1", createdAt: serverTimestamp() };
   await assertSucceeds(setDoc(privateFeedRef, privateFeed));
-  await assertSucceeds(getDoc(doc(studentOtherReader, "institutions/inst-1/studentSessionFeeds/student-other/sessions/session-valid")));
-  await assertFails(getDoc(doc(studentReader, "institutions/inst-1/studentSessionFeeds/student-other/sessions/session-valid")));
+  await assertSucceeds(getDoc(doc(studentOtherReader, "institutions/inst-1/studentSessionFeeds/student-other/sessions/" + feedSessionId)));
+  await assertFails(getDoc(doc(studentReader, "institutions/inst-1/studentSessionFeeds/student-other/sessions/" + feedSessionId)));
   // Idempotent feed backfill may refresh only its timestamp; identity and eligibility remain immutable.
   await assertSucceeds(setDoc(privateFeedRef, { ...privateFeed, createdAt: serverTimestamp() }));
   await assertFails(setDoc(privateFeedRef, { ...privateFeed, campusId: "campus-2", createdAt: serverTimestamp() }));
-  await assertFails(setDoc(doc(owner, "institutions/inst-1/studentSessionFeeds/student-other-campus/sessions/session-valid"), { ...privateFeed, createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/studentSessionFeeds/student-other-campus/sessions/" + feedSessionId), { ...privateFeed, createdAt: serverTimestamp() }));
 
   console.log("PASS: Firestore access control, role hierarchy, invitation acceptance and automatic learner UID/device binding");
 } finally {
