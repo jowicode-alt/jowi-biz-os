@@ -239,6 +239,17 @@ try {
     ...validAttendance, sessionId: "session-checkin-valid", accuracyMeters: 101
   }));
 
+  // A session owner can publish an eligible active session to the learner's private live feed.
+  const privateFeedRef = doc(owner, "institutions/inst-1/studentSessionFeeds/student-other/sessions/session-valid");
+  const privateFeed = { sessionId: "session-valid", campusId: "campus-1", courseUnitId: "cu-comm", createdBy: "owner-1", createdAt: serverTimestamp() };
+  await assertSucceeds(setDoc(privateFeedRef, privateFeed));
+  await assertSucceeds(getDoc(doc(studentOtherReader, "institutions/inst-1/studentSessionFeeds/student-other/sessions/session-valid")));
+  await assertFails(getDoc(doc(studentReader, "institutions/inst-1/studentSessionFeeds/student-other/sessions/session-valid")));
+  // Idempotent feed backfill may refresh only its timestamp; identity and eligibility remain immutable.
+  await assertSucceeds(setDoc(privateFeedRef, { ...privateFeed, createdAt: serverTimestamp() }));
+  await assertFails(setDoc(privateFeedRef, { ...privateFeed, campusId: "campus-2", createdAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/studentSessionFeeds/student-other-campus/sessions/session-valid"), { ...privateFeed, createdAt: serverTimestamp() }));
+
   console.log("PASS: Firestore access control, role hierarchy, invitation acceptance and automatic learner UID/device binding");
 } finally {
   await env.cleanup();
