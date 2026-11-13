@@ -488,13 +488,24 @@ function reportGroupTitle(group){
  const lecturer=st.members.find(x=>x.id===group.lecturerId)?.name||"Lecturer not recorded";
  return {campusName,programmeName,unitName,semesterName,lecturer,title:[campusName,programmeName,unitName,"Study year "+(group.studyYear||"—"),semesterName,lecturer].join(" | ")};
 }
+function reportDateColumnLabel(dateEntry){
+ const sessions=dateEntry.sessions||[];
+ const ms=v=>v?.toMillis?v.toMillis():v?.seconds?v.seconds*1000:Number(v)||0;
+ const clock=value=>value?new Date(value).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",hour12:false}):"";
+ const starts=sessions.map(s=>ms(s.openedAt||s.createdAt)).filter(Boolean).sort((a,b)=>a-b);
+ const ends=sessions.map(s=>ms(s.closedAt||s.expiresAt)).filter(Boolean).sort((a,b)=>a-b);
+ const date=dateEntry.dateKey==="unknown-date"?"Date unavailable":new Date(dateEntry.dateKey+"T00:00:00").toLocaleDateString();
+ const start=starts.length?clock(starts[0]):"Start unavailable";
+ const end=ends.length?clock(ends[ends.length-1]):"Ongoing";
+ return date+"\\n"+start+" – "+end;
+}
 function renderAttendanceReportPreview(groups){
  const box=$("#attendance-report-preview");if(!box)return;
  if(!groups.length){box.className="report-preview surface pale";box.textContent="No attendance sessions and eligible learners match these filters.";return}
  box.className="report-preview surface pale";
  box.innerHTML=groups.map(group=>{
   const title=reportGroupTitle(group),dates=group.dates;
-  const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(d=>d.dateKey==="unknown-date"?"Date unavailable":new Date(d.dateKey+"T00:00:00").toLocaleDateString())];
+  const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(reportDateColumnLabel)];
   const rows=group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")]);
   return '<section class="report-preview-group"><h3 class="report-preview-title">'+safe(title.title)+'</h3><p class="tiny">'+group.students.length+' learners · '+dates.length+' attendance date(s)</p><table><thead><tr>'+headings.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+safe(x)+'</td>').join("")+'</tr>').join("")+'</tbody></table></section>';
  }).join("");
@@ -527,7 +538,7 @@ $("#export-pdf").onclick=async()=>{
    pdf.text("Campus: "+title.campusName+" | Programme: "+title.programmeName,10,y);y+=4.5;
    pdf.text("Course unit: "+title.unitName+" | Study year: "+(group.studyYear||"—")+" | Semester: "+title.semesterName,10,y);y+=4.5;
    pdf.text("Lecturer: "+title.lecturer+" | Institution: "+String(st.inst?.name||""),10,y);y+=6;
-   const rows=[["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(d=>d.dateKey==="unknown-date"?"DATE":new Date(d.dateKey+"T00:00:00").toLocaleDateString())],...group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")])];
+   const rows=[["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(reportDateColumnLabel)],...group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")])];
    const pageWidth=277,baseWidths=[10,29,38,34,22],dateWidth=Math.max(10,(pageWidth-baseWidths.reduce((x,y)=>x+y,0))/Math.max(1,dates.length)),widths=[...baseWidths,...dates.map(()=>dateWidth)];
    const fontSize=dates.length>12?5.2:dates.length>8?6:7;pdf.setFontSize(fontSize);
    for(let ri=0;ri<rows.length;ri++){
