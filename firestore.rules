@@ -10,10 +10,10 @@ service cloud.firestore {
   function billingAccessPath(id) { return /databases/$(database)/documents/institutions/$(id)/billingAccess/current; }
   function hasCurrentBillingAccess(id) {
    let path = billingAccessPath(id);
-   return exists(path)
-    && get(path).data.get('canOpenSessions', false) == true
-    && get(path).data.get('accessUntil', null) is timestamp
-    && get(path).data.accessUntil > request.time;
+   let access = exists(path) ? get(path).data : {};
+   return access.get('canOpenSessions', false) == true
+    && access.get('accessUntil', null) is timestamp
+    && access.get('accessUntil', request.time) > request.time;
   }
   function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
   function hasOwnStudent(id) { return signedIn() && exists(studentPath(id, request.auth.uid)); }
