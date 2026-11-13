@@ -4,12 +4,12 @@ import{getFirestore,collection,doc,getDoc,getDocs,query,orderBy,limit,writeBatch
 const firebaseConfig={apiKey:"AIzaSyB-dlQtjt9r_iKrM7GytukIjOPDN_zcBpY",authDomain:"jowi-biz-os.firebaseapp.com",projectId:"jowi-biz-os",storageBucket:"jowi-biz-os.firebasestorage.app",messagingSenderId:"821672776356",appId:"1:821672776356:web:1fd58e0a923807299ccc31"};
 const app=initializeApp(firebaseConfig),superAdminAuthApp=initializeApp(firebaseConfig,"intercampus-super-admin-auth"),auth=getAuth(superAdminAuthApp),db=getFirestore(superAdminAuthApp),$=s=>document.querySelector(s),safe=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 await setPersistence(auth,browserSessionPersistence);
-let institutions=[],selected=null,loadingCount=0;
+let institutions=[],selected=null,selectedSubscription=null,loadingCount=0;
 function showLoader(message="Please wait…"){loadingCount++;$("#sa-loading-text").textContent=message;show("#sa-loading")}
 function hideLoader(){loadingCount=Math.max(0,loadingCount-1);if(!loadingCount)hide("#sa-loading")}
 async function withLoader(message,task){showLoader(message);try{return await task()}finally{hideLoader()}}
 function show(id){$(id).classList.remove("sa-hidden")}function hide(id){$(id).classList.add("sa-hidden")}
-function statusLabel(s){return s==="suspended"?"Suspended":s==="active"?"Active":s==="pending"?"Pending":s||"Not set"}
+function statusLabel(s){return s==="suspended"?"Suspended":s==="active"?"Active":s==="pending"?"Pending":s==="pilot"?"Pending setup":s||"Not set"}
 async function verify(user){if(!user||user.email?.toLowerCase()!=="fwizzard10@gmail.com")return false;const snap=await getDoc(doc(db,"users",user.uid));if(!snap.exists())return false;const p=snap.data();return p.email?.toLowerCase()==="fwizzard10@gmail.com"&&p.role==="super_admin"&&p.status==="active"}
 onAuthStateChanged(auth,user=>withLoader("Checking secure access…",async()=>{hide("#dashboard");hide("#setup-required");hide("#login-panel");if(!user){hide("#sa-profile-wrap");show("#login-panel");return}try{if(await verify(user)){show("#sa-profile-wrap");show("#dashboard");await loadDashboard()}else{hide("#sa-profile-wrap");show("#setup-required")}}catch(e){$("#sa-login-error").textContent=e.message;show("#setup-required")}}));
 $("#sa-login-form").addEventListener("submit",async e=>{e.preventDefault();$("#sa-login-error").textContent="";try{await withLoader("Signing in securely…",()=>signInWithEmailAndPassword(auth,$("#sa-email").value.trim(),$("#sa-password").value))}catch(err){$("#sa-login-error").textContent=err.code==="auth/invalid-credential"?"Email or password is incorrect.":err.message}});
