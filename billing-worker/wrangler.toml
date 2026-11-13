@@ -4,8 +4,8 @@ compatibility_date = "2026-11-13"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "intercampus-billing-db"
-database_id = "CREATE_D1_DATABASE_FIRST"
+database_name = "intercampus-billing"
+database_id = "3e7b4b40-bb34-40df-96e4-ef60ceaed615"
 
 [vars]
 FIREBASE_PROJECT_ID = "jowi-biz-os"
