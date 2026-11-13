@@ -7,13 +7,6 @@ service cloud.firestore {
   function isSuperAdmin() { return hasProfile() && profile().email == 'fwizzard10@gmail.com' && profile().role == 'super_admin' && profile().status == 'active'; }
   function profile() { return get(userPath(request.auth.uid)).data; }
   function memberPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/members/$(uid); }
-  function billingAccessPath(id) { return /databases/$(database)/documents/institutions/$(id)/billingAccess/current; }
-  function hasCurrentBillingAccess(id) {
-   let access = get(billingAccessPath(id)).data;
-   return access.get('canOpenSessions', false) == true
-    && access.get('accessUntil', null) is timestamp
-    && access.accessUntil > request.time;
-  }
   function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
   function hasOwnStudent(id) { return signedIn() && exists(studentPath(id, request.auth.uid)); }
   function ownStudent(id) { return get(studentPath(id, request.auth.uid)).data; }
@@ -149,6 +142,9 @@ service cloud.firestore {
    let user = userFound ? get(userRef).data : {};
    let member = memberFound ? get(memberRef).data : {};
    return signedIn() && userFound && memberFound && user.get('institutionId','') == id
+    && member.get('billingCanOpenSessions',false) == true
+    && member.get('billingAccessUntil',null) is timestamp
+    && member.billingAccessUntil > request.time
     && (member.get('role','') in ['owner','institution_admin']
      || (member.get('role','') in ['campus_admin','lecturer']
       && member.get('assignedCampusId','') == campusId));
@@ -214,7 +210,7 @@ service cloud.firestore {
    let classId = data.get('classId','');
    let unitSession = unitId is string && unitId.size() > 0;
    let classSession = (data.get('programmeId','') is string && data.get('programmeId','').size() > 0) || (classId is string && classId.size() > 0);
-   return hasCurrentBillingAccess(id) && canTeachCampus(id,campusId) && data.get('createdBy','') == request.auth.uid
+   return canTeachCampus(id,campusId) && data.get('createdBy','') == request.auth.uid
     && data.get('status','') == 'active' && ((classSession && data.get('sessionType','') == 'class') || (!classSession && data.get('sessionType','') == 'course-unit')) && data.get('title','') is string && data.get('title','').size() > 0
     && campusId is string && campusId.size() > 0
     && ((classSession && validClassSessionCreate(id,data)) || (!classSession && unitSession && validCourseUnitSessionCreate(id,data)))
