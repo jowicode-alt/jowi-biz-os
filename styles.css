@@ -129,3 +129,9 @@ body{padding-bottom:58px}
 
 /* Owner subscription payment history */
 .billing-history-list{display:grid;gap:10px}.billing-history-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border,#e5e7eb)}.billing-history-row>div{display:grid;gap:4px;min-width:0}.billing-history-row small{overflow-wrap:anywhere;color:var(--muted,#667085)}.billing-history-row>span{font-size:.75rem;font-weight:700;letter-spacing:.04em;color:var(--muted,#667085)}@media(max-width:560px){.billing-history-row{grid-template-columns:minmax(0,1fr) auto;gap:8px}.billing-history-row>span{grid-column:1/-1}}
+
+
+/* Clear subscription status indicators */
+#billing-status{display:inline-flex;align-items:center;gap:6px;font-weight:800;letter-spacing:.02em}
+#billing-status.billing-status-unpaid{color:#b42318}
+#billing-status.billing-status-active{color:#16803c}
