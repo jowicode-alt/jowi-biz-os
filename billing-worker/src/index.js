@@ -127,11 +127,7 @@ export default {async fetch(request,env){
     if(url.pathname==="/billing/summary"&&request.method==="GET"){
       const {count}=await activeStudents(ctx,env);
       const data=summaryData(ctx.institution,count);
-      if(!val(ctx.institution.fields?.subscription?.mapValue?.fields,"trialStartedAt")){
-        const start=new Date().toISOString(),end=new Date(Date.now()+14*86400000).toISOString();
-        await saveInstitution(ctx,env,{status:"trial",trialStartedAt:start,trialEndsAt:end});
-        data.status="trial";data.trialStartedAt=start;data.trialEndsAt=end;data.trialDaysRemaining=14;
-      }
+      
       return new Response(JSON.stringify(data),{headers});
     }
     if(url.pathname==="/billing/checkout"&&request.method==="POST"){
