@@ -23,6 +23,7 @@ try {
     await setDoc(doc(db, "users/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", institutionId: "inst-1", institutionCode: "IC-ABCD-2345", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-1"), { name: "Test Institution", type: "College", country: "Uganda", timezone: "Africa/Kampala", ownerId: "owner-1", institutionCode: "IC-ABCD-2345", status: "pilot", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/members/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", role: "owner", status: "active", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1/billingAccess/current"), { canOpenSessions: true, status: "trial", accessUntil: new Date(Date.now() + 14 * 86400000) });
     await setDoc(doc(db, "users/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", institutionId: "inst-1", role: "lecturer", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-1/members/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", role: "lecturer", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
     await setDoc(doc(db, "users/campus-admin-1"), { uid: "campus-admin-1", name: "Campus Admin", email: "campus@example.test", institutionId: "inst-1", role: "campus_admin", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
@@ -253,7 +254,13 @@ try {
   await assertFails(setDoc(privateFeedRef, { ...privateFeed, campusId: "campus-2", createdAt: serverTimestamp() }));
   await assertFails(setDoc(doc(owner, "institutions/inst-1/studentSessionFeeds/student-other-campus/sessions/" + feedSessionId), { ...privateFeed, createdAt: serverTimestamp() }));
 
-  console.log("PASS: Firestore access control, role hierarchy, invitation acceptance and automatic learner UID/device binding");
+  // Session creation is denied immediately when the trusted billing entitlement is revoked.
+  await env.withSecurityRulesDisabled(async ctx => {
+    await updateDoc(doc(ctx.firestore(), "institutions/inst-1/billingAccess/current"), { canOpenSessions: false, status: "expired", accessUntil: new Date(Date.now() - 1000) });
+  });
+  await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-blocked-without-payment"), { ...validSession, activeCode: "818181" }));
+
+  console.log("PASS: Firestore access control, paid/trial session entitlement, role hierarchy, invitation acceptance and automatic learner UID/device binding");
 } finally {
   await env.cleanup();
 }
