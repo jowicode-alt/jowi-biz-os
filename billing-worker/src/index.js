@@ -65,7 +65,7 @@ function summaryData(institution, count){
   const trialStart=val(sub,"trialStartedAt"),trialEnd=val(sub,"trialEndsAt"),status=val(sub,"status")||"trial";
   const renewal=val(sub,"renewalAt"),paidThrough=val(sub,"paidThrough");
   const now=Date.now(), trialActive=trialEnd&&millis(trialEnd)>now;
-  return {institutionName:val(f,"name")||"Institution",studentCount:count,rate:250,currency:"UGX",status:trialActive?"trial":status,trialStartedAt:trialStart,trialEndsAt:trialEnd,trialDaysRemaining:trialActive?Math.ceil((millis(trialEnd)-now)/86400000):0,renewalAt:renewal,paidThrough,amountDue:count*250};
+  return {institutionName:val(f,"name")||"Institution",studentCount:count,rate:250,currency:"UGX",status:trialActive?"trial":status==="active"?"active":trialEnd?"expired":"not_configured",trialStartedAt:trialStart,trialEndsAt:trialEnd,trialDaysRemaining:trialActive?Math.ceil((millis(trialEnd)-now)/86400000):0,renewalAt:renewal,paidThrough,amountDue:trialActive?0:count*250,upcomingMonthlyAmount:count*250};
 }
 async function saveInstitution(ctx,env,patch){
   const token=ctx.access, id=ctx.institutionId;
