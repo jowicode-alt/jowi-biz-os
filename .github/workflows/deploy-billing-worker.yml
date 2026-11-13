@@ -25,7 +25,7 @@ jobs:
           JJUMA_SECRET_KEY: ${{ secrets.JJUMA_SECRET_KEY }}
           JJUMA_WEBHOOK_SECRET: ${{ secrets.JJUMA_WEBHOOK_SECRET }}
         run: |
-          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ] || [ -z "$FIREBASE_SERVICE_ACCOUNT" ] || [ -z "$JJUMA_SECRET_KEY" ] || [ -z "$JJUMA_WEBHOOK_SECRET" ]; then
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ] || [ -z "$FIREBASE_SERVICE_ACCOUNT" ] || [ -z "$JJUMA_SECRET_KEY" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Worker deployment skipped. Add the five required GitHub Actions secrets described in billing-worker/README.md."
           else
@@ -47,5 +47,5 @@ jobs:
         run: |
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | npx wrangler secret put FIREBASE_SERVICE_ACCOUNT
           printf '%s' "$JJUMA_SECRET_KEY" | npx wrangler secret put JJUMA_SECRET_KEY
-          printf '%s' "$JJUMA_WEBHOOK_SECRET" | npx wrangler secret put JJUMA_WEBHOOK_SECRET
+          if [ -n "$JJUMA_WEBHOOK_SECRET" ]; then printf '%s' "$JJUMA_WEBHOOK_SECRET" | npx wrangler secret put JJUMA_WEBHOOK_SECRET; fi
           npx wrangler deploy
