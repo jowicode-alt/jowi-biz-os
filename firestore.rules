@@ -712,7 +712,7 @@ allow update, delete: if false;
   }
   match /platformAuditLogs/{logId} {
    allow get, list: if isSuperAdmin();
-   allow create: if isSuperAdmin() && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == 'fwizzard10@gmail.com' && request.resource.data.action in ['institution_suspended','institution_reactivated'] && request.resource.data.institutionId is string && request.resource.data.timestamp == request.time && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','institutionId','institutionName','previousStatus','newStatus','timestamp']);
+   allow create: if isSuperAdmin() && request.resource.data.actorUid == request.auth.uid && request.resource.data.actorEmail == 'fwizzard10@gmail.com' && request.resource.data.action in ['institution_suspended','institution_reactivated','subscription_manually_activated','subscription_manually_extended','subscription_manually_disabled'] && request.resource.data.institutionId is string && request.resource.data.timestamp == request.time && request.resource.data.keys().hasOnly(['actorUid','actorEmail','action','institutionId','institutionName','previousStatus','newStatus','days','paidThrough','timestamp']);
    allow update, delete: if false;
   }
   match /{document=**} { allow read, write: if false; }
