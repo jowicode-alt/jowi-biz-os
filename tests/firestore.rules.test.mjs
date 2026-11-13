@@ -22,15 +22,14 @@ try {
     const db = ctx.firestore();
     await setDoc(doc(db, "users/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", institutionId: "inst-1", institutionCode: "IC-ABCD-2345", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-1"), { name: "Test Institution", type: "College", country: "Uganda", timezone: "Africa/Kampala", ownerId: "owner-1", institutionCode: "IC-ABCD-2345", status: "pilot", createdAt: new Date(), createdBy: "owner-1" });
-    await setDoc(doc(db, "institutions/inst-1/members/owner-1"), { uid: "owner-1", name: "Owner", email: "owner@example.test", role: "owner", status: "active", createdAt: new Date() });
-    await setDoc(doc(db, "institutions/inst-1/billingAccess/current"), { canOpenSessions: true, status: "trial", accessUntil: new Date(Date.now() + 14 * 86400000) });
+    await setDoc(doc(db, "institutions/inst-1/members/owner-1"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "owner-1", name: "Owner", email: "owner@example.test", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "users/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", institutionId: "inst-1", role: "lecturer", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
-    await setDoc(doc(db, "institutions/inst-1/members/lecturer-1"), { uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", role: "lecturer", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1/members/lecturer-1"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "lecturer-1", name: "Lecturer", email: "lecturer@example.test", role: "lecturer", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
     await setDoc(doc(db, "users/campus-admin-1"), { uid: "campus-admin-1", name: "Campus Admin", email: "campus@example.test", institutionId: "inst-1", role: "campus_admin", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
-    await setDoc(doc(db, "institutions/inst-1/members/campus-admin-1"), { uid: "campus-admin-1", name: "Campus Admin", email: "campus@example.test", role: "campus_admin", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1/members/campus-admin-1"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "campus-admin-1", name: "Campus Admin", email: "campus@example.test", role: "campus_admin", status: "active", assignedCampusId: "campus-1", createdAt: new Date() });
     await setDoc(doc(db, "users/institution-admin-1"), { uid: "institution-admin-1", name: "Institution Admin", email: "institution-admin@example.test", institutionId: "inst-1", role: "institution_admin", status: "active", createdAt: new Date() });
-    await setDoc(doc(db, "institutions/inst-1/members/institution-admin-1"), { uid: "institution-admin-1", name: "Institution Admin", email: "institution-admin@example.test", role: "institution_admin", status: "active", createdAt: new Date() });
-    await setDoc(doc(db, "institutions/inst-1/members/lecturer-campus-2"), { uid: "lecturer-campus-2", name: "Other Campus Lecturer", role: "lecturer", status: "active", assignedCampusId: "campus-2" });
+    await setDoc(doc(db, "institutions/inst-1/members/institution-admin-1"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "institution-admin-1", name: "Institution Admin", email: "institution-admin@example.test", role: "institution_admin", status: "active", createdAt: new Date() });
+    await setDoc(doc(db, "institutions/inst-1/members/lecturer-campus-2"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "lecturer-campus-2", name: "Other Campus Lecturer", role: "lecturer", status: "active", assignedCampusId: "campus-2" });
     await setDoc(doc(db, "users/outsider-1"), { uid: "outsider-1", name: "Outsider", email: "outsider@example.test", institutionId: "inst-2", role: "owner", status: "active", createdAt: new Date() });
     await setDoc(doc(db, "institutions/inst-2"), { name: "Other Institution", ownerId: "outsider-1", status: "pilot" });
     await setDoc(doc(db, "institutions/inst-2/members/outsider-1"), { uid: "outsider-1", role: "owner", status: "active" });
@@ -42,11 +41,11 @@ try {
     await setDoc(doc(db, "institutions/inst-1/classes/class-1"), { name: "Class 1", code: "C1", campusId: "campus-1", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "institutions/inst-1/classes/class-2"), { name: "Class 2", code: "C2", campusId: "campus-2", createdAt: new Date(), createdBy: "owner-1" });
     await setDoc(doc(db, "users/student-reader"), { uid: "student-reader", name: "Reader", email: "reader@example.test", institutionId: "inst-1", role: "student", status: "active" });
-    await setDoc(doc(db, "institutions/inst-1/members/student-reader"), { uid: "student-reader", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/members/student-reader"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "student-reader", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-reader"), { authUid: "student-reader", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-reader" });
     await setDoc(doc(db, "institutions/inst-1/students/student-other"), { authUid: "student-other", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-other" });
     await setDoc(doc(db, "users/student-other"), { uid: "student-other", name: "Other", email: "other@example.test", institutionId: "inst-1", role: "student", status: "active" });
-    await setDoc(doc(db, "institutions/inst-1/members/student-other"), { uid: "student-other", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/members/student-other"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "student-other", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-other_cu-comm"), { studentUid: "student-other", courseUnitId: "cu-comm", programmeId: "programme-business", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-other-campus"), { authUid: "student-other-campus", classId: "class-2", campusId: "campus-2", status: "active", deviceId: "device-other-campus" });
     await setDoc(doc(db, "institutions/inst-1/courseUnits/cu-comm"), { name: "Communication Skills", code: "COM101", programmeIds: ["programme-it", "programme-business"], status: "active" });
@@ -57,7 +56,7 @@ try {
     await setDoc(doc(db, "institutions/inst-1/semesters/semester-2"), { name: "Semester 2", academicYearId: "year-2026", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-reader_cu-comm"), { studentUid: "student-reader", courseUnitId: "cu-comm", programmeId: "programme-it", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "users/student-year2-reader"), { uid: "student-year2-reader", name: "Year 2 Reader", email: "year2@example.test", institutionId: "inst-1", role: "student", status: "active" });
-    await setDoc(doc(db, "institutions/inst-1/members/student-year2-reader"), { uid: "student-year2-reader", role: "student", status: "active" });
+    await setDoc(doc(db, "institutions/inst-1/members/student-year2-reader"), { billingCanOpenSessions: true, billingAccessUntil: new Date(Date.now() + 14 * 86400000), uid: "student-year2-reader", role: "student", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/students/student-year2-reader"), { authUid: "student-year2-reader", classId: "class-1", campusId: "campus-1", status: "active", deviceId: "device-year2" });
     await setDoc(doc(db, "institutions/inst-1/enrolments/student-year2-reader_cu-comm"), { studentUid: "student-year2-reader", courseUnitId: "cu-comm", programmeId: "programme-it", studyYear: "Year 2", academicYearId: "year-2026", semesterId: "semester-2", campusId: "campus-1", teachingGroupId: "", status: "active" });
     await setDoc(doc(db, "institutions/inst-1/sessions/session-shared-course-unit"), { status: "active", courseUnitId: "cu-comm", studyYear: "Year 1", academicYearId: "year-2026", semesterId: "semester-1", teachingGroupId: "", campusId: "campus-1", sessionGroupMode: "combined", expiresAt: Date.now() + 60000 });
@@ -256,7 +255,7 @@ try {
 
   // Session creation is denied immediately when the trusted billing entitlement is revoked.
   await env.withSecurityRulesDisabled(async ctx => {
-    await updateDoc(doc(ctx.firestore(), "institutions/inst-1/billingAccess/current"), { canOpenSessions: false, status: "expired", accessUntil: new Date(Date.now() - 1000) });
+    await updateDoc(doc(ctx.firestore(), "institutions/inst-1/members/owner-1"), { billingCanOpenSessions: false, billingAccessUntil: new Date(Date.now() - 1000) });
   });
   await assertFails(setDoc(doc(owner, "institutions/inst-1/sessions/session-blocked-without-payment"), { ...validSession, activeCode: "818181" }));
 
