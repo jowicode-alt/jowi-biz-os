@@ -116,7 +116,7 @@ service cloud.firestore {
    let member = memberFound ? get(memberRef).data : {};
    return signedIn() && userFound && memberFound && user.get('institutionId','') == id
     && (member.get('role','') in ['owner','institution_admin']
-     || (member.get('role','') == 'campus_admin' && member.get('assignedCampusId','') == campusId));
+     || (member.get('role','') in ['campus_admin','lecturer'] && member.get('assignedCampusId','') == campusId));
   }
   function classCampus(id,classId) { return get(/databases/$(database)/documents/institutions/$(id)/classes/$(classId)).data.campusId; }
   function canManageClass(id,classId) {
