@@ -55,3 +55,4 @@ jobs:
           printf '%s' "$JJUMA_SECRET_KEY" | npx wrangler secret put JJUMA_SECRET_KEY
           if [ -n "$JJUMA_WEBHOOK_SECRET" ]; then printf '%s' "$JJUMA_WEBHOOK_SECRET" | npx wrangler secret put JJUMA_WEBHOOK_SECRET; fi
           npx wrangler deploy
+# Redeploy trigger: upload the latest JJuma webhook signing secret.
