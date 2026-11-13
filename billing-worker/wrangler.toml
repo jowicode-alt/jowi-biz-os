@@ -1,0 +1,10 @@
+name = "intercampus-billing"
+main = "src/index.js"
+compatibility_date = "2026-11-13"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+FIREBASE_PROJECT_ID = "jowi-biz-os"
+FIREBASE_WEB_API_KEY = "AIzaSyB-dlQtjt9r_iKrM7GytukIjOPDN_zcBpY"
+PUBLIC_APP_URL = "https://jowi-biz-os.web.app"
+ALLOWED_ORIGINS = "https://jowi-biz-os.web.app"
