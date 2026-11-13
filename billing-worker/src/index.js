@@ -26,8 +26,10 @@ async function summary(ctx,env){const now=Date.now(),count=await activeStudentCo
 async function checkout(ctx,env){
  const count=await activeStudentCount(ctx,env);if(count<1)throw new Error("There are no active registered students to bill.");
  const sub=await subscription(ctx,env),now=Date.now(),paidThrough=Number(sub.paid_through||0),paidActive=sub.status==="active"&&paidThrough>now;
+ // Expire abandoned initialisation attempts: these have no JJuma transaction ID or payment URL.
+ await env.DB.prepare("UPDATE billing_transactions SET status='failed' WHERE institution_id=? AND status='initiating' AND created_at<?").bind(ctx.institutionId,now-5*60*1000).run();
  const pending=await env.DB.prepare("SELECT id FROM billing_transactions WHERE institution_id=? AND status IN ('initiating','pending') LIMIT 1").bind(ctx.institutionId).first();
- if(pending)throw new Error("A payment is already pending for this institution. Complete or cancel that checkout before starting another.");
+ if(pending)throw new Error("A payment is already pending for this institution. Complete that JJuma checkout before starting another.");
  let amount=count*250,type="initial",renewalAt=null,allocations=[];
  if(paidActive){
   const paidCount=Number(sub.paid_student_count||0),newSeats=count-paidCount;
@@ -45,11 +47,11 @@ async function checkout(ctx,env){
   amount=money(newSeats*250*remainingMs/period);type="additional_seats";renewalAt=paidThrough;
  }
  if(amount<1)throw new Error("The calculated amount is zero. Contact support before retrying.");
+ if(!env.JJUMA_PUBLIC_KEY)throw new Error("JJuma public API key is not configured on the billing service.");
  const id=crypto.randomUUID(),external="IC-"+ctx.institutionId+"-"+id;
  await env.DB.prepare("INSERT INTO billing_transactions (id,institution_id,external_order_id,amount,currency,student_count,seat_count,billing_type,seat_batch_allocations,status,created_at) VALUES (?,?,?,?, 'UGX',?,?,?,?, 'initiating',?)").bind(id,ctx.institutionId,external,amount,count,paidActive?count-Number(sub.paid_student_count||0):count,type,JSON.stringify(allocations),now).run();
  const origin=env.PUBLIC_APP_URL||"https://jowi-biz-os.web.app";
  const payload={amount,currency:"UGX",customer_name:field(ctx.institution.fields,"name")||"InterCampus institution",redirect_url:origin,return_url:origin,cancel_redirect_url:origin,metadata:{product:"InterCampus subscription",institutionId:ctx.institutionId,transactionKey:id,studentCount:count,billingType:type},external_order_id:external,idempotency_key:external};
- if(!env.JJUMA_PUBLIC_KEY)throw new Error("JJuma public API key is not configured on the billing service.");
  const r=await fetch("https://api.jjuma.com/api/v1/payments/create",{method:"POST",headers:{Authorization:"Bearer "+env.JJUMA_PUBLIC_KEY,"content-type":"application/json","accept":"application/json"},body:JSON.stringify(payload)}),j=await r.json().catch(()=>({})),payment=j.data||j;
  if(!r.ok||!payment.payment_url||!payment.transaction_id){await env.DB.prepare("UPDATE billing_transactions SET status='failed' WHERE id=?").bind(id).run();const reason=typeof j.message==="string"?j.message:typeof j.error==="string"?j.error:"Please check the JJuma public API key and merchant verification.";throw new Error("JJuma rejected checkout: "+reason);}
  await env.DB.prepare("UPDATE billing_transactions SET transaction_id=?,reference=?,payment_url=?,status='pending' WHERE id=?").bind(String(payment.transaction_id),String(payment.reference||""),String(payment.payment_url),id).run();
