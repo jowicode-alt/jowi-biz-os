@@ -4,13 +4,13 @@ This Worker is the private server-side payment layer for InterCampus Attendance.
 
 ## Required GitHub Actions secrets
 
-Add these repository Actions secrets before deploying:
+Add these four repository Actions secrets before the first deployment:
 
 - `CLOUDFLARE_API_TOKEN` — Cloudflare API token with Workers Scripts edit permission.
 - `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID.
 - `FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS` — service-account JSON for Firebase project `jowi-biz-os`, with Firestore access.
 - `JJUMA_SECRET_KEY` — JJuma secret API key.
-- `JJUMA_WEBHOOK_SECRET` — signing secret generated when the JJuma webhook destination is configured.
+- `JJUMA_WEBHOOK_SECRET` — optional for the first deployment; add it after creating the JJuma webhook destination. The webhook endpoint rejects events until this secret is configured.
 
 Never put any of these values in browser JavaScript or commit them to GitHub.
 
@@ -23,7 +23,7 @@ Never put any of these values in browser JavaScript or commit them to GitHub.
 
 ## JJuma webhook
 
-After the Worker has deployed, add its URL in JJuma Dashboard → Tools → Webhooks. Subscribe to `payment.completed` and copy the generated webhook signing secret into the GitHub Actions secret `JJUMA_WEBHOOK_SECRET`. The Worker endpoint is `https://<worker-host>/webhooks/jjuma`.
+After the Worker has deployed, add its URL in JJuma Dashboard → Tools → Webhooks. Subscribe to `payment.completed` and copy the generated webhook signing secret into the GitHub Actions secret `JJUMA_WEBHOOK_SECRET`, then rerun the Worker deployment workflow. The Worker endpoint is `https://<worker-host>/webhooks/jjuma`.
 
 ## Important rollout note
 
