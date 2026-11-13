@@ -70,7 +70,7 @@ function summaryData(institution, count){
 async function saveInstitution(ctx,env,patch){
   const token=ctx.access, id=ctx.institutionId;
   const fields={...(ctx.institution.fields||{}),subscription:{mapValue:{fields:Object.fromEntries(Object.entries(patch).map(([k,v])=>[k,typeof v==="number"?{integerValue:String(v)}:v===null?{nullValue:null}:{stringValue:String(v)}]))}}};
-  return firestore(env,"institutions/"+id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({fields})});
+  return firestore(env,"institutions/"+id+"?updateMask.fieldPaths=subscription",token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({fields:{subscription:fields.subscription}})});
 }
 async function createCheckout(ctx,env){
   const {count}=await activeStudents(ctx,env);
@@ -86,7 +86,7 @@ async function createCheckout(ctx,env){
   const r=await fetch("https://api.jjuma.com/api/v1/payments/create",{method:"POST",headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY,"content-type":"application/json"},body:JSON.stringify(payload)});
   const j=await r.json(); if(!r.ok||!j.payment_url||!j.transaction_id)throw new Error("JJuma could not create the checkout. Try again later.");
   const token=ctx.access;
-  await firestore(env,"institutions/"+ctx.institutionId+"/billingPayments/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId:j.transaction_id,reference:j.reference||"",externalOrderId:externalId,amount,currency:"UGX",studentCount:count,status:"pending",createdAt:new Date().toISOString()}))});
+  await firestore(env,"institutions/"+ctx.institutionId+"/billingPayments/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId:j.transaction_id,reference:j.reference||"",externalOrderId:externalId,amount,currency:"UGX",studentCount:count,status:"pending",createdAt:new Date().toISOString()}))});\n  await firestore(env,"billingTransactions/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({institutionId:ctx.institutionId,transactionId:j.transaction_id,status:"pending"}))});
   return {paymentUrl:j.payment_url,transactionId:j.transaction_id,amount,studentCount:count};
 }
 async function webhook(request,env){
@@ -107,12 +107,12 @@ async function webhook(request,env){
   const payment=await fetch("https://api.jjuma.com/api/v1/payments/verify/"+encodeURIComponent(transactionId),{headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY}});
   const verified=await payment.json();
   if(!payment.ok||!["completed","success","paid"].includes(String(verified.status||verified.data?.status||"").toLowerCase()))return response({error:"Payment not verified"},400);
-  const institutionId=data.metadata.institutionId, now=new Date(), renewal=new Date(now);renewal.setMonth(renewal.getMonth()+1);
+  const now=new Date(), renewal=new Date(now); const day=renewal.getDate(); renewal.setDate(1); renewal.setMonth(renewal.getMonth()+1); const lastDay=new Date(renewal.getFullYear(),renewal.getMonth()+1,0).getDate(); renewal.setDate(Math.min(day,lastDay));
   await firestore(env,"institutions/"+institutionId+"/billingPayments/"+transactionId,access,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId,status:"paid",verifiedAt:now.toISOString(),amount:Number(val(tx.fields,"amount")||0),studentCount:Number(val(tx.fields,"studentCount")||0)}))});
   const inst=await firestore(env,"institutions/"+institutionId,access);
   const current=inst.fields||{};
   const fields={...current,subscription:{mapValue:{fields:{status:{stringValue:"active"},lastPaymentAt:{stringValue:now.toISOString()},renewalAt:{stringValue:renewal.toISOString()},paidThrough:{stringValue:renewal.toISOString()},lastPaidStudentCount:{integerValue:String(val(tx.fields,"studentCount")||0)},lastTransactionId:{stringValue:transactionId}}}}};
-  await firestore(env,"institutions/"+institutionId,access,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({fields})});
+  await firestore(env,"institutions/"+institutionId+"?updateMask.fieldPaths=subscription",access,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({fields:{subscription:fields.subscription}})});
   return response({received:true});
 }
 export default {async fetch(request,env){
@@ -130,7 +130,7 @@ export default {async fetch(request,env){
       if(!val(ctx.institution.fields?.subscription?.mapValue?.fields,"trialStartedAt")){
         const start=new Date().toISOString(),end=new Date(Date.now()+14*86400000).toISOString();
         await saveInstitution(ctx,env,{status:"trial",trialStartedAt:start,trialEndsAt:end});
-        data.status="trial";data.trialStartedAt=start;data.trialEndsAt=end;data.trialDaysRemaining:14;
+        data.status="trial";data.trialStartedAt=start;data.trialEndsAt=end;data.trialDaysRemaining=14;
       }
       return new Response(JSON.stringify(data),{headers});
     }
