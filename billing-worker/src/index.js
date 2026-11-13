@@ -4,7 +4,7 @@ const encoder = new TextEncoder();
 const iso = value => value ? new Date(value).toISOString() : null;
 const addCalendarMonth = value => { const d=new Date(value), day=d.getUTCDate(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+1); d.setUTCDate(Math.min(day,new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate())); return d; };
 const money = n => Math.max(0,Math.ceil(Number(n)||0));
-function cors(request,env){const origin=request.headers.get("Origin")||"",allowed=(env.ALLOWED_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean);return allowed.includes(origin)?{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Authorization,Content-Type","Vary":"Origin"}:{};}
+function cors(request,env){const origin=request.headers.get("Origin")||"",allowed=(env.ALLOWED_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean);return allowed.includes(origin)?{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Authorization,Content-Type,X-Checkout-Request-Id","Vary":"Origin"}:{};}
 function field(fields,key){const v=fields?.[key];return v?.stringValue??v?.integerValue??v?.booleanValue??v?.timestampValue??null;}
 
 let googleTokenCache = null;
