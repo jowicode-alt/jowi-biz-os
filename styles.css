@@ -113,7 +113,7 @@ header{position:sticky;top:0;z-index:1200;gap:12px}
 
 .legal-acceptance{margin:22px 0 18px;padding:18px;border:1px solid #d6e4df;border-radius:14px;background:#f5faf8}.legal-acceptance h3{margin:0 0 8px;color:#123d35}.legal-acceptance ul{margin:8px 0 14px;padding-left:22px}.legal-acceptance a{color:#176b55;font-weight:600}.consent-row{display:flex;align-items:flex-start;gap:10px;font-weight:600;line-height:1.5}.consent-row input{width:18px;height:18px;min-width:18px;margin:3px 0 0;accent-color:#176b55}.legal-acceptance .tiny{margin:10px 0 0;color:#63736d;font-size:.84rem}
 
-.report-filter-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end}.report-filter-grid input,.report-filter-grid select{width:100%}
+.report-filter-scroll{overflow-x:auto;padding:2px 0 10px}.report-filter-grid{display:flex;align-items:end;gap:12px;min-width:max-content;margin:12px 0 18px}.report-filter-grid>div{width:190px;flex:0 0 190px}.report-filter-grid input,.report-filter-grid select{width:100%}.report-preview{overflow-x:auto}.report-preview table{border-collapse:collapse;min-width:100%;white-space:nowrap;font-size:.86rem}.report-preview th,.report-preview td{padding:9px 11px;border:1px solid #d9e5e0;text-align:left}.report-preview th{background:#e6f0ea;font-weight:700}.report-preview .report-preview-title{margin:0 0 10px}
 
 
 /* Persistent WhatsApp support contact on every app and authentication screen */

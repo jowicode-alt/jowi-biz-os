@@ -157,7 +157,7 @@ let candidates=records;
 keys.forEach(key=>{const el=$("#learner-filter-"+key);if(!el)return;const field=fields[key],values=[...new Set(candidates.map(s=>String(s[field]||"")).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));el.innerHTML='<option value="">'+first[key]+'</option>'+values.map(v=>'<option value="'+safe(v)+'">'+safe(labels[key](v))+'</option>').join("");if(values.includes(previous[key]))el.value=previous[key];const chosen=el.value;if(chosen)candidates=candidates.filter(s=>String(s[field]||"")===chosen)});
 const search=$("#learner-search")?.value.trim().toLocaleLowerCase()||"";
 if(search)candidates=candidates.filter(s=>[s.name,s.studentNumber,s.registrationNumber,s.admissionNumber,s.email].some(v=>String(v||"").toLocaleLowerCase().includes(search)));
-const active=candidates.filter(s=>s.status!=="inactive"),inactive=candidates.filter(s=>s.status==="inactive");
+candidates.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),undefined,{sensitivity:"base"}));const active=candidates.filter(s=>s.status!=="inactive"),inactive=candidates.filter(s=>s.status==="inactive");
 const draw=(items,boxId,isInactive)=>{const box=$("#"+boxId);if(!box)return;box.className=items.length?"":"empty";box.innerHTML=items.length?items.map(s=>'<div class="record learner-record">'+avatarMarkup(s)+'<div class="learner-record-details"><b>'+safe(s.name)+'</b><small>'+safe(s.studentNumber||s.registrationNumber||s.admissionNumber||"Registration number not set")+' · '+safe(st.programmes.find(p=>p.id===s.programmeId)?.name||"Course not set")+'</small><small style="display:block">Campus: '+safe(s.campusId?campus(s.campusId):"Campus not assigned")+' · '+safe(s.studyYear||"Study year not set")+' · '+safe(s.semesterId?(st.semesters.find(x=>x.id===s.semesterId)?.name||s.semesterId):"Semester not set")+'</small></div><div class="session-actions">'+(isInactive?'<span class="tiny">Inactive</span>':'<button type="button" class="secondary" data-deactivate-student="'+safe(s.id)+'">Mark left</button>')+'</div></div>').join(""):"No "+(isInactive?"inactive":"active")+" learners found.";};
 draw(active,"student-active-list",false);draw(inactive,"student-inactive-list",true);
 const lecturerUnassigned=roleNow==="lecturer"&&(!(st.profile.assignedClassId||st.profile.classId)||!(st.profile.assignedProgrammeId||st.profile.programmeId));
@@ -304,7 +304,7 @@ function renderCategoryRemovalLists(){
  ];
  for(const [collection,id,label] of specs){const el=$("#"+id);if(!el)continue;const records=(st[collection]||[]).filter(x=>x.status!=="inactive");el.innerHTML=records.length?records.map(x=>'<div class="record"><span>'+safe(label(x))+'</span> <button type="button" class="secondary" data-archive-record="'+collection+'" data-id="'+safe(x.id)+'">Remove</button></div>').join(""):"No active categories created.";}
 }
-function renderAcademic(){configurePromotionForm();fillSelect("academic-year-existing",st.academicYears.filter(x=>x.status!=="inactive"),x=>x.name,"Choose academic year to edit");fillSelect("semester-existing",st.semesters.filter(x=>x.status!=="inactive"),x=>(st.academicYears.find(a=>a.id===x.academicYearId)?.name||"Academic year")+" · "+x.name,"Choose semester to edit");fillSelect("programme-existing",st.programmes.filter(x=>x.status!=="inactive"),x=>(x.code||"")+" · "+x.name,"Choose programme to edit");fillSelect("course-unit-existing",st.courseUnits.filter(x=>x.status!=="inactive"),x=>(x.code||"")+" · "+x.name,"Choose course unit to edit");fillSelect("curriculum-mapping-existing",st.curriculumMappings.filter(x=>x.status!=="inactive"),x=>(st.programmes.find(p=>p.id===x.programmeId)?.name||x.programmeId)+" · "+(st.courseUnits.find(u=>u.id===x.courseUnitId)?.code||st.courseUnits.find(u=>u.id===x.courseUnitId)?.name||x.courseUnitId)+" · "+x.studyYear+" · Sem "+x.semesterNumber,"Choose mapping to edit");fillSelect("teaching-group-existing",st.teachingGroups.filter(x=>x.status!=="inactive"),x=>x.name+" · "+(st.campuses.find(c=>c.id===x.campusId)?.name||x.campusId),"Choose session to edit");renderCategoryRemovalLists();const reportValues={category:$("#report-category-filter")?.value||"",campus:$("#report-campus-filter")?.value||"",programme:$("#report-programme-filter")?.value||"",unit:$("#report-course-unit-filter")?.value||"",year:$("#report-academic-year-filter")?.value||"",semester:$("#report-semester-filter")?.value||""};fillSelect("report-campus-filter",st.campuses,x=>x.name,"All campuses");fillSelect("report-programme-filter",st.programmes,x=>x.name,"All programmes");fillSelect("report-course-unit-filter",st.courseUnits,x=>(x.code?x.code+" · ":"")+x.name,"All course units");fillSelect("report-academic-year-filter",st.academicYears,x=>x.name,"All academic years");fillSelect("report-semester-filter",st.semesters,x=>(st.academicYears.find(y=>y.id===x.academicYearId)?.name||"Academic year")+" · "+x.name,"All semesters");$("#report-category-filter").innerHTML='<option value="">All categories</option><option value="__combined__">Combined / all session groups</option><option value="__class__">Class sessions</option>'+st.teachingGroups.filter(g=>g.status!=="inactive").map(g=>'<option value="'+safe(g.id)+'">'+safe(g.name)+" · "+safe(st.campuses.find(c=>c.id===g.campusId)?.name||g.campusId)+'</option>').join("");for(const [key,id] of Object.entries({category:"report-category-filter",campus:"report-campus-filter",programme:"report-programme-filter",unit:"report-course-unit-filter",year:"report-academic-year-filter",semester:"report-semester-filter"})){const el=$("#"+id);if(el&&[...el.options].some(o=>o.value===reportValues[key]))el.value=reportValues[key]}$("#academic-setup").classList.toggle("hidden",role()==="student");;fillSelect("semester-year",st.academicYears,x=>x.name);$("#course-unit-programmes").innerHTML=st.programmes.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join("");fillSelect("curriculum-course-unit",st.courseUnits.filter(x=>x.status==="active"),x=>x.code+" · "+x.name);fillSelect("curriculum-programme",st.programmes.filter(x=>x.status==="active"),x=>x.name);const activeMappings=st.curriculumMappings.filter(x=>x.status!=="inactive"),mappingGroups=new Map();activeMappings.forEach(m=>{const key=[m.programmeId,m.studyYear,m.semesterNumber].join("|");if(!mappingGroups.has(key))mappingGroups.set(key,[]);mappingGroups.get(key).push(m)});$("#curriculum-map-list").innerHTML=[...mappingGroups.entries()].map(([key,items])=>{const first=items[0],programme=st.programmes.find(p=>p.id===first.programmeId)?.name||first.programmeId;return '<div class="record"><div><b>'+safe(programme+" · "+first.studyYear+" · Semester "+first.semesterNumber)+'</b><ul>'+items.map(m=>{const unit=st.courseUnits.find(u=>u.id===m.courseUnitId);return '<li>'+safe((unit?.code?unit.code+" · ":"")+(unit?.name||m.courseUnitId))+' <button type="button" class="secondary" data-archive-record="curriculumMappings" data-id="'+safe(m.id)+'">Remove</button></li>'}).join("")+'</ul></div></div>'}).join("")||"No curriculum mappings yet.";const mappedUnitIds=new Set(activeMappings.map(m=>m.courseUnitId));const unplaced=st.courseUnits.filter(u=>u.status!=="inactive"&&!mappedUnitIds.has(u.id));const unplacedHtml=unplaced.length?'<div class="record"><div><b>Course units not yet placed in a curriculum</b><ul>'+unplaced.map(u=>'<li>'+safe((u.code?u.code+" · ":"")+u.name)+' <button type="button" class="secondary" data-edit-course-unit="'+safe(u.id)+'">Edit</button> <button type="button" class="secondary" data-archive-record="courseUnits" data-id="'+safe(u.id)+'">Remove</button></li>').join("")+'</ul></div></div>':'';$("#curriculum-map-list").innerHTML=($("#curriculum-map-list").innerHTML||"")+unplacedHtml;if(!activeMappings.length&&!unplaced.length)setText("#curriculum-map-list","No course units or curriculum mappings yet.");document.querySelectorAll("[data-edit-course-unit]").forEach(button=>button.onclick=()=>{const unit=st.courseUnits.find(x=>x.id===button.dataset.editCourseUnit);if(!unit)return;st.editingCourseUnitId=unit.id;$("#course-unit-name").value=unit.name||"";$("#course-unit-code").value=unit.code||"";$("#course-unit-description").value=unit.description||"";$("#course-unit-programmes").querySelectorAll("option").forEach(o=>o.selected=(unit.programmeIds||[]).includes(o.value));setText("#course-unit-form button","Save course-unit changes");setText("#course-unit-message","Update the courses that include this shared course unit.");$("#course-unit-form").scrollIntoView({behavior:"smooth"});});fillSelect("enrolment-student",st.students,x=>(x.name||"Learner")+" · "+(x.studentNumber||x.id));fillSelect("enrolment-course-unit",st.courseUnits,x=>x.code+" · "+x.name);fillSelect("enrolment-programme",st.programmes,x=>x.name);fillSelect("enrolment-year",st.academicYears,x=>x.name);fillSelect("enrolment-semester",st.semesters,x=>x.name);fillSelect("student-programme",st.programmes.filter(x=>x.status==="active"),x=>x.name,"Choose programme");fillSelect("student-academic-year",st.academicYears.filter(x=>x.status==="active"),x=>x.name,"Choose academic year");const courseUnitGroups=new Map();st.courseUnits.filter(x=>x.status!=="inactive").forEach(unit=>{const programmeNames=(unit.programmeIds||[]).map(pid=>st.programmes.find(p=>p.id===pid)?.name||pid);const keys=programmeNames.length?programmeNames:["Not assigned to a course"];keys.forEach(name=>{if(!courseUnitGroups.has(name))courseUnitGroups.set(name,[]);courseUnitGroups.get(name).push(unit)})});document.querySelectorAll("[data-edit-course-unit]").forEach(button=>button.onclick=()=>{const unit=st.courseUnits.find(x=>x.id===button.dataset.editCourseUnit);if(!unit)return;st.editingCourseUnitId=unit.id;$("#course-unit-name").value=unit.name||"";$("#course-unit-code").value=unit.code||"";$("#course-unit-description").value=unit.description||"";$("#course-unit-programmes").querySelectorAll("option").forEach(o=>o.selected=(unit.programmeIds||[]).includes(o.value));setText("#course-unit-form button","Save course-unit changes");setText("#course-unit-message","Update the courses that include this shared course unit. Deselect a course to remove the link.");$("#course-unit-form").scrollIntoView({behavior:"smooth"});});const activeEnrolments=st.enrolments.filter(x=>(x.status||"active")==="active"),byLearner=new Map();for(const en of activeEnrolments){const sid=en.studentUid||en.studentId||"";if(!sid)continue;if(!byLearner.has(sid))byLearner.set(sid,{student:st.students.find(x=>x.id===sid),courses:new Map()});const group=byLearner.get(sid),programme=st.programmes.find(p=>p.id===en.programmeId)?.name||"Course";if(!group.courses.has(programme))group.courses.set(programme,new Set());const unit=st.courseUnits.find(c=>c.id===en.courseUnitId);group.courses.get(programme).add(unit?.name||unit?.code||en.courseUnitId);}const enrolmentRows=[...byLearner.entries()].map(([sid,g])=>{const details=[...g.courses.entries()].map(([course,units])=>course+" ("+[...units].join(", ")+")").join(" · ");return "<div class=\"record\"><div><b>"+safe(g.student?.name||sid)+"</b><small>"+safe(g.student?.studentNumber||g.student?.registrationNumber||g.student?.admissionNumber||"Registration number not set")+" · "+safe(details||"No active course units assigned")+"</small></div><span>Active</span></div>"});$("#enrolment-list").innerHTML=enrolmentRows.length?enrolmentRows.join(""):"No active learner enrolments yet.";fillSelect("teaching-group-campus",st.campuses,x=>x.name,"Choose campus");$("#teaching-group-list").innerHTML=st.teachingGroups.length?st.teachingGroups.map(g=>rec(g.name,g.code||campus(g.campusId),g.status||"active")).join(""):"No sessions configured.";if(role()==="lecturer"){const note=$("#academic-setup-access-note");if(note){note.classList.remove("hidden");note.textContent="You can manage academic years, semesters, programmes, course units and curriculum mappings for your assigned campus. sessions remain campus-scoped."}}}
+function renderAcademic(){configurePromotionForm();fillSelect("academic-year-existing",st.academicYears.filter(x=>x.status!=="inactive"),x=>x.name,"Choose academic year to edit");fillSelect("semester-existing",st.semesters.filter(x=>x.status!=="inactive"),x=>(st.academicYears.find(a=>a.id===x.academicYearId)?.name||"Academic year")+" · "+x.name,"Choose semester to edit");fillSelect("programme-existing",st.programmes.filter(x=>x.status!=="inactive"),x=>(x.code||"")+" · "+x.name,"Choose programme to edit");fillSelect("course-unit-existing",st.courseUnits.filter(x=>x.status!=="inactive"),x=>(x.code||"")+" · "+x.name,"Choose course unit to edit");fillSelect("curriculum-mapping-existing",st.curriculumMappings.filter(x=>x.status!=="inactive"),x=>(st.programmes.find(p=>p.id===x.programmeId)?.name||x.programmeId)+" · "+(st.courseUnits.find(u=>u.id===x.courseUnitId)?.code||st.courseUnits.find(u=>u.id===x.courseUnitId)?.name||x.courseUnitId)+" · "+x.studyYear+" · Sem "+x.semesterNumber,"Choose mapping to edit");fillSelect("teaching-group-existing",st.teachingGroups.filter(x=>x.status!=="inactive"),x=>x.name+" · "+(st.campuses.find(c=>c.id===x.campusId)?.name||x.campusId),"Choose session to edit");renderCategoryRemovalLists();const reportValues={category:$("#report-category-filter")?.value||"",campus:$("#report-campus-filter")?.value||"",programme:$("#report-programme-filter")?.value||"",unit:$("#report-course-unit-filter")?.value||"",year:$("#report-academic-year-filter")?.value||"",studyYear:$("#report-study-year-filter")?.value||"",semester:$("#report-semester-filter")?.value||""};fillSelect("report-campus-filter",st.campuses,x=>x.name,"All campuses");fillSelect("report-programme-filter",st.programmes,x=>x.name,"All programmes");fillSelect("report-course-unit-filter",st.courseUnits,x=>(x.code?x.code+" · ":"")+x.name,"All course units");fillSelect("report-academic-year-filter",st.academicYears,x=>x.name,"All academic years");const studyYears=[...new Set(st.enrolments.map(e=>String(e.studyYear||"")).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));$("#report-study-year-filter").innerHTML='<option value="">All study years</option>'+studyYears.map(y=>'<option value="'+safe(y)+'">'+safe(y)+'</option>').join("");fillSelect("report-semester-filter",st.semesters,x=>(st.academicYears.find(y=>y.id===x.academicYearId)?.name||"Academic year")+" · "+x.name,"All semesters");$("#report-category-filter").innerHTML='<option value="">All session groups</option><option value="__combined__">Combined / all session groups</option><option value="__class__">Programme sessions</option>'+st.teachingGroups.filter(g=>g.status!=="inactive").map(g=>'<option value="'+safe(g.id)+'">'+safe(g.name)+" · "+safe(st.campuses.find(c=>c.id===g.campusId)?.name||g.campusId)+'</option>').join("");for(const [key,id] of Object.entries({category:"report-category-filter",campus:"report-campus-filter",programme:"report-programme-filter",unit:"report-course-unit-filter",year:"report-academic-year-filter",studyYear:"report-study-year-filter",semester:"report-semester-filter"})){const el=$("#"+id);if(el&&[...el.options].some(o=>o.value===reportValues[key]))el.value=reportValues[key]}$("#academic-setup").classList.toggle("hidden",role()==="student");;fillSelect("semester-year",st.academicYears,x=>x.name);$("#course-unit-programmes").innerHTML=st.programmes.map(x=>'<option value="'+safe(x.id)+'">'+safe(x.name)+'</option>').join("");fillSelect("curriculum-course-unit",st.courseUnits.filter(x=>x.status==="active"),x=>x.code+" · "+x.name);fillSelect("curriculum-programme",st.programmes.filter(x=>x.status==="active"),x=>x.name);const activeMappings=st.curriculumMappings.filter(x=>x.status!=="inactive"),mappingGroups=new Map();activeMappings.forEach(m=>{const key=[m.programmeId,m.studyYear,m.semesterNumber].join("|");if(!mappingGroups.has(key))mappingGroups.set(key,[]);mappingGroups.get(key).push(m)});$("#curriculum-map-list").innerHTML=[...mappingGroups.entries()].map(([key,items])=>{const first=items[0],programme=st.programmes.find(p=>p.id===first.programmeId)?.name||first.programmeId;return '<div class="record"><div><b>'+safe(programme+" · "+first.studyYear+" · Semester "+first.semesterNumber)+'</b><ul>'+items.map(m=>{const unit=st.courseUnits.find(u=>u.id===m.courseUnitId);return '<li>'+safe((unit?.code?unit.code+" · ":"")+(unit?.name||m.courseUnitId))+' <button type="button" class="secondary" data-archive-record="curriculumMappings" data-id="'+safe(m.id)+'">Remove</button></li>'}).join("")+'</ul></div></div>'}).join("")||"No curriculum mappings yet.";const mappedUnitIds=new Set(activeMappings.map(m=>m.courseUnitId));const unplaced=st.courseUnits.filter(u=>u.status!=="inactive"&&!mappedUnitIds.has(u.id));const unplacedHtml=unplaced.length?'<div class="record"><div><b>Course units not yet placed in a curriculum</b><ul>'+unplaced.map(u=>'<li>'+safe((u.code?u.code+" · ":"")+u.name)+' <button type="button" class="secondary" data-edit-course-unit="'+safe(u.id)+'">Edit</button> <button type="button" class="secondary" data-archive-record="courseUnits" data-id="'+safe(u.id)+'">Remove</button></li>').join("")+'</ul></div></div>':'';$("#curriculum-map-list").innerHTML=($("#curriculum-map-list").innerHTML||"")+unplacedHtml;if(!activeMappings.length&&!unplaced.length)setText("#curriculum-map-list","No course units or curriculum mappings yet.");document.querySelectorAll("[data-edit-course-unit]").forEach(button=>button.onclick=()=>{const unit=st.courseUnits.find(x=>x.id===button.dataset.editCourseUnit);if(!unit)return;st.editingCourseUnitId=unit.id;$("#course-unit-name").value=unit.name||"";$("#course-unit-code").value=unit.code||"";$("#course-unit-description").value=unit.description||"";$("#course-unit-programmes").querySelectorAll("option").forEach(o=>o.selected=(unit.programmeIds||[]).includes(o.value));setText("#course-unit-form button","Save course-unit changes");setText("#course-unit-message","Update the courses that include this shared course unit.");$("#course-unit-form").scrollIntoView({behavior:"smooth"});});fillSelect("enrolment-student",st.students,x=>(x.name||"Learner")+" · "+(x.studentNumber||x.id));fillSelect("enrolment-course-unit",st.courseUnits,x=>x.code+" · "+x.name);fillSelect("enrolment-programme",st.programmes,x=>x.name);fillSelect("enrolment-year",st.academicYears,x=>x.name);fillSelect("enrolment-semester",st.semesters,x=>x.name);fillSelect("student-programme",st.programmes.filter(x=>x.status==="active"),x=>x.name,"Choose programme");fillSelect("student-academic-year",st.academicYears.filter(x=>x.status==="active"),x=>x.name,"Choose academic year");const courseUnitGroups=new Map();st.courseUnits.filter(x=>x.status!=="inactive").forEach(unit=>{const programmeNames=(unit.programmeIds||[]).map(pid=>st.programmes.find(p=>p.id===pid)?.name||pid);const keys=programmeNames.length?programmeNames:["Not assigned to a course"];keys.forEach(name=>{if(!courseUnitGroups.has(name))courseUnitGroups.set(name,[]);courseUnitGroups.get(name).push(unit)})});document.querySelectorAll("[data-edit-course-unit]").forEach(button=>button.onclick=()=>{const unit=st.courseUnits.find(x=>x.id===button.dataset.editCourseUnit);if(!unit)return;st.editingCourseUnitId=unit.id;$("#course-unit-name").value=unit.name||"";$("#course-unit-code").value=unit.code||"";$("#course-unit-description").value=unit.description||"";$("#course-unit-programmes").querySelectorAll("option").forEach(o=>o.selected=(unit.programmeIds||[]).includes(o.value));setText("#course-unit-form button","Save course-unit changes");setText("#course-unit-message","Update the courses that include this shared course unit. Deselect a course to remove the link.");$("#course-unit-form").scrollIntoView({behavior:"smooth"});});const activeEnrolments=st.enrolments.filter(x=>(x.status||"active")==="active"),byLearner=new Map();for(const en of activeEnrolments){const sid=en.studentUid||en.studentId||"";if(!sid)continue;if(!byLearner.has(sid))byLearner.set(sid,{student:st.students.find(x=>x.id===sid),courses:new Map()});const group=byLearner.get(sid),programme=st.programmes.find(p=>p.id===en.programmeId)?.name||"Course";if(!group.courses.has(programme))group.courses.set(programme,new Set());const unit=st.courseUnits.find(c=>c.id===en.courseUnitId);group.courses.get(programme).add(unit?.name||unit?.code||en.courseUnitId);}const enrolmentRows=[...byLearner.entries()].map(([sid,g])=>{const details=[...g.courses.entries()].map(([course,units])=>course+" ("+[...units].join(", ")+")").join(" · ");return "<div class=\"record\"><div><b>"+safe(g.student?.name||sid)+"</b><small>"+safe(g.student?.studentNumber||g.student?.registrationNumber||g.student?.admissionNumber||"Registration number not set")+" · "+safe(details||"No active course units assigned")+"</small></div><span>Active</span></div>"});$("#enrolment-list").innerHTML=enrolmentRows.length?enrolmentRows.join(""):"No active learner enrolments yet.";fillSelect("teaching-group-campus",st.campuses,x=>x.name,"Choose campus");$("#teaching-group-list").innerHTML=st.teachingGroups.length?st.teachingGroups.map(g=>rec(g.name,g.code||campus(g.campusId),g.status||"active")).join(""):"No sessions configured.";if(role()==="lecturer"){const note=$("#academic-setup-access-note");if(note){note.classList.remove("hidden");note.textContent="You can manage academic years, semesters, programmes, course units and curriculum mappings for your assigned campus. sessions remain campus-scoped."}}}
 
 function configurePromotionForm(){if(!$("#bulk-promotion-form"))return;fillSelect("promotion-programme",st.programmes.filter(p=>p.status==="active"),p=>p.name,"Choose programme");fillSelect("promotion-academic-year",st.academicYears.filter(y=>y.status==="active"),y=>y.name,"Choose target academic year");$("#promotion-from-year").innerHTML='<option value="">Choose current year</option>'+Array.from({length:10},(_,i)=>'<option>Year '+(i+1)+'</option>').join("");$("#promotion-target-year").innerHTML='<option value="">Choose target year of study</option>'+Array.from({length:10},(_,i)=>'<option>Year '+(i+1)+'</option>').join("");fillSelect("promotion-current-semester",st.semesters.filter(x=>x.status==="active"),x=>x.name+" · Semester "+(Number(x.semesterNumber)||Number(String(x.name||"").replace(/[^0-9]/g,""))||"?"),"Choose current semester");const yearId=$("#promotion-academic-year").value;fillSelect("promotion-semester",st.semesters.filter(x=>x.status==="active"&&x.academicYearId===yearId),x=>x.name+" · Semester "+(Number(x.semesterNumber)||Number(String(x.name||"").replace(/[^0-9]/g,""))||"?"),"Choose target semester")}
 $("#promotion-academic-year")?.addEventListener("change",()=>{const yearId=$("#promotion-academic-year").value;fillSelect("promotion-semester",st.semesters.filter(x=>x.status==="active"&&x.academicYearId===yearId),x=>x.name+" · Semester "+(Number(x.semesterNumber)||Number(String(x.name||"").replace(/[^0-9]/g,""))||"?"),"Choose target semester")});
@@ -404,86 +404,147 @@ async function finalizeExpiredOwnedSessions(){
 async function close(auto){let s=st.active;if(!s||s.status==="closed")return;if(st.user.uid!==s.createdBy){msg("session-message","access restricted to only session owner");return}try{const absentCount=await finalizeSessionAbsences(s);await updateDoc(doc(db,"institutions",st.profile.institutionId,"sessions",s.id),{status:"closed",closedAt:Date.now(),closedBy:st.user.uid});s.status="closed";s.activeCode=null;draw();clearInterval(st.timer);await refresh();msg("session-message","Session closed. "+absentCount+" absent record(s) finalized.",true)}catch(x){console.error("Session closure/finalization failed",x);msg("session-message",err(x))}}
 let qrStream=null,qrScanActive=false,qrCanvas=document.createElement("canvas"),qrContext=qrCanvas.getContext("2d",{willReadFrequently:true});function stopQrScanner(){qrScanActive=false;if(qrStream){qrStream.getTracks().forEach(t=>t.stop());qrStream=null}const video=$("#qr-camera");if(video){video.pause();video.srcObject=null;hide(video)}}$("#cancel-checkin")?.addEventListener("click",restoreCheckinScreen);$("#scan-qr")?.addEventListener("click",async()=>{const video=$("#qr-camera");try{if(!navigator.mediaDevices?.getUserMedia)throw Error("Camera access is unavailable. Open this site over HTTPS and allow camera permission.");if(typeof window.jsQR!=="function")throw Error("QR scanner library did not load. Refresh the page and try again.");stopQrScanner();msg("student-checkin-message","Opening camera… allow camera permission and hold the session QR inside the camera view.",true);qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});video.srcObject=qrStream;show(video);await video.play();qrScanActive=true;msg("student-checkin-message","Scanning for the active session QR… keep the QR visible in the camera.",true);const scan=()=>{if(!qrScanActive||!qrStream)return;if(video.readyState>=HTMLMediaElement.HAVE_ENOUGH_DATA&&video.videoWidth&&video.videoHeight){qrCanvas.width=video.videoWidth;qrCanvas.height=video.videoHeight;qrContext.drawImage(video,0,0,qrCanvas.width,qrCanvas.height);const frame=qrContext.getImageData(0,0,qrCanvas.width,qrCanvas.height),result=window.jsQR(frame.data,frame.width,frame.height,{inversionAttempts:"attemptBoth"});if(result?.data){let payload;try{payload=JSON.parse(result.data)}catch{}if(payload?.product==="InterCampusAttendance"&&payload.institutionId===st.profile.institutionId&&payload.sessionId&&payload.code){const session=st.sessions.find(s=>s.id===payload.sessionId);if(!session||session.status!=="active"||Number(session.expiresAt)<=Date.now()){msg("student-checkin-message","This QR belongs to an expired or inactive session. Scan the current session QR.",false);requestAnimationFrame(scan);return}$("#checkin-session-id").value=payload.sessionId;$("#checkin-code").value=String(payload.code);stopQrScanner();msg("student-checkin-message","QR recognised. Verifying session code, registered device and location…",true);$("#student-checkin-form").requestSubmit();return}else{msg("student-checkin-message","QR detected, but it is not a valid InterCampus session QR. Keep scanning the correct classroom QR.",false)}}}requestAnimationFrame(scan)};requestAnimationFrame(scan)}catch(e){stopQrScanner();msg("student-checkin-message",e?.message||err(e))}});function csv(name,rows){let t=rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+t],{type:"text/csv;charset=utf-8"}));a.download=name;a.click();URL.revokeObjectURL(a.href)}$("#export-students").onclick=()=>{csv("intercampus-learners.csv",[["Name","Student number","Class","Status"],...st.students.map(s=>[s.name,s.studentNumber,klass(s.classId),s.status])]);msg("report-message","Learner CSV exported.",true)};$("#export-sessions").onclick=()=>{csv("intercampus-sessions.csv",[["Title","Course / programme","Status","Duration minutes"],...st.sessions.map(s=>[s.title,s.programmeId?(st.programmes.find(p=>p.id===s.programmeId)?.name||s.programmeId):"Shared course unit",s.status,s.durationMinutes])]);msg("report-message","Session CSV exported.",true)};
 
+
+async function loadAttendanceReportRecords(force=false){
+ if(st.reportRecords&&!force)return st.reportRecords;
+ let records=[];
+ if(["owner","institution_admin"].includes(role())){
+  const [snap,absenceSnap]=await Promise.all([getDocs(col("attendance")),getDocs(col("absences"))]);
+  records=[...snap.docs,...absenceSnap.docs].map(d=>({id:d.id,...d.data()}));
+ }else if(["campus_admin","lecturer"].includes(role())){
+  const sessionSnaps=await Promise.all(st.sessions.map(s=>Promise.all([getDocs(query(col("attendance"),where("sessionId","==",s.id))),getDocs(query(col("absences"),where("sessionId","==",s.id)))])));
+  records=sessionSnaps.flatMap(pair=>pair.flatMap(x=>x.docs.map(d=>({id:d.id,...d.data()}))));
+ }else throw Error("Attendance reports are not available for this account.");
+ st.reportRecords=records;return records;
+}
+function reportFilters(){
+ return {category:$("#report-category-filter")?.value||"",campus:$("#report-campus-filter")?.value||"",programme:$("#report-programme-filter")?.value||"",unit:$("#report-course-unit-filter")?.value||"",year:$("#report-academic-year-filter")?.value||"",studyYear:$("#report-study-year-filter")?.value||"",semester:$("#report-semester-filter")?.value||"",from:$("#report-date-from")?.value||"",to:$("#report-date-to")?.value||""};
+}
+function buildAttendanceReportGroups(records,filters){
+ if(filters.from&&filters.to&&filters.from>filters.to)throw Error("The report start date must be on or before the end date.");
+ const ms=v=>v?.toMillis?v.toMillis():v?.seconds?v.seconds*1000:Number(v)||0;
+ const startOfDay=v=>new Date(v+"T00:00:00").getTime();
+ const sessions=st.sessions.filter(s=>{
+  if(filters.campus&&s.campusId!==filters.campus)return false;
+  if(filters.unit&&s.courseUnitId!==filters.unit)return false;
+  if(filters.year&&s.academicYearId!==filters.year)return false;
+  if(filters.programme&&!(s.programmeId===filters.programme||st.enrolments.some(e=>e.courseUnitId===s.courseUnitId&&e.programmeId===filters.programme)))return false;
+  const sems=Array.isArray(s.semesterIds)&&s.semesterIds.length?s.semesterIds:[s.semesterId].filter(Boolean);
+  if(filters.semester&&!sems.includes(filters.semester))return false;
+  const category=s.sessionType==="class"?"__class__":s.sessionGroupMode==="combined"?"__combined__":(s.teachingGroupId||"");
+  if(filters.category&&category!==filters.category)return false;
+  const opened=ms(s.openedAt||s.createdAt);
+  if(filters.from&&opened<startOfDay(filters.from))return false;
+  if(filters.to&&opened>=startOfDay(filters.to)+86400000)return false;
+  return true;
+ });
+ const sessionIds=new Set(sessions.map(s=>s.id)),bySession=new Map();
+ records.filter(r=>sessionIds.has(r.sessionId)).forEach(r=>{if(!bySession.has(r.sessionId))bySession.set(r.sessionId,[]);bySession.get(r.sessionId).push(r)});
+ const groups=new Map();
+ for(const session of sessions){
+  if(!session.courseUnitId)continue;
+  const unit=st.courseUnits.find(x=>x.id===session.courseUnitId);
+  const opened=ms(session.openedAt||session.createdAt),dateKey=opened?new Date(opened).toISOString().slice(0,10):"unknown-date";
+  const eligible=st.enrolments.filter(en=>en.status==="active"&&sessionMatchesEnrolment(session,en,st.students.find(x=>x.id===(en.studentUid||en.authUid||en.id))?.classId));
+  for(const en of eligible){
+   const uid=en.studentUid||en.authUid||en.id;
+   const student=st.students.find(x=>x.id===uid||x.authUid===uid);
+   if(!student||student.status==="inactive")continue;
+   const programmeId=en.programmeId||student.programmeId||session.programmeId||"";
+   if(filters.programme&&programmeId!==filters.programme)continue;
+   const studyYear=String(en.studyYear||session.studyYear||student.studyYear||"");
+   if(filters.studyYear&&studyYear!==filters.studyYear)continue;
+   const semesterId=en.semesterId||session.semesterId||(session.semesterIds||[])[0]||"";
+   const campusId=en.campusId||session.campusId||student.campusId||"";
+   const lecturerId=session.lecturerId||session.createdBy||session.openedBy||"";
+   const groupKey=[campusId,programmeId,session.courseUnitId,studyYear,semesterId,lecturerId].join("|");
+   if(!groups.has(groupKey))groups.set(groupKey,{campusId,programmeId,courseUnitId:session.courseUnitId,studyYear,semesterId,lecturerId,dates:new Map(),students:new Map()});
+   const group=groups.get(groupKey);
+   if(!group.dates.has(dateKey))group.dates.set(dateKey,{dateKey,sessions:[]});
+   const dateEntry=group.dates.get(dateKey);if(!dateEntry.sessions.some(x=>x.id===session.id))dateEntry.sessions.push(session);
+   const sessionGroupId=en.teachingGroupId||session.teachingGroupId||"";
+   const sessionGroup=st.teachingGroups.find(x=>x.id===sessionGroupId)?.name||(session.sessionGroupMode==="combined"?"Combined":"");
+   if(!group.students.has(uid))group.students.set(uid,{uid,student,registration:student.studentNumber||student.registrationNumber||student.admissionNumber||"",name:student.name||"",programmeId,sessionGroup,statusByDate:new Map()});
+   const person=group.students.get(uid);
+   if(!person.sessionGroup&&sessionGroup)person.sessionGroup=sessionGroup;
+   const rows=bySession.get(session.id)||[];
+   const studentRecords=rows.filter(r=>r.studentId===uid);
+   const present=studentRecords.some(r=>String(r.status||"").toLowerCase()==="present");
+   const absent=studentRecords.some(r=>String(r.status||"").toLowerCase()==="absent");
+   const current=person.statusByDate.get(dateKey);
+   person.statusByDate.set(dateKey,present||current==="Present"?"Present":absent||sessionHasEnded(session)?"Absent":current||"—");
+  }
+ }
+ return [...groups.values()].map(g=>({...g,dates:[...g.dates.values()].sort((a,b)=>a.dateKey.localeCompare(b.dateKey)),students:[...g.students.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}))})).filter(g=>g.dates.length&&g.students.length).sort((a,b)=>{
+  const key=x=>[campus(x.campusId),st.programmes.find(p=>p.id===x.programmeId)?.name||"",st.courseUnits.find(u=>u.id===x.courseUnitId)?.name||"",x.studyYear,x.semesterId].join("|");
+  return key(a).localeCompare(key(b),undefined,{sensitivity:"base"});
+ });
+}
+function reportGroupTitle(group){
+ const campusName=st.campuses.find(x=>x.id===group.campusId)?.name||"Campus";
+ const programmeName=st.programmes.find(x=>x.id===group.programmeId)?.name||"Programme";
+ const unitName=st.courseUnits.find(x=>x.id===group.courseUnitId)?.name||"Course unit";
+ const semesterName=st.semesters.find(x=>x.id===group.semesterId)?.name||group.semesterId||"Semester";
+ const lecturer=st.members.find(x=>x.id===group.lecturerId)?.name||"Lecturer not recorded";
+ return {campusName,programmeName,unitName,semesterName,lecturer,title:[campusName,programmeName,unitName,"Study year "+(group.studyYear||"—"),semesterName,lecturer].join(" | ")};
+}
+function renderAttendanceReportPreview(groups){
+ const box=$("#attendance-report-preview");if(!box)return;
+ if(!groups.length){box.className="report-preview surface pale";box.textContent="No attendance sessions and eligible learners match these filters.";return}
+ const group=groups[0],title=reportGroupTitle(group),dates=group.dates;
+ const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(d=>d.dateKey==="unknown-date"?"Date unavailable":new Date(d.dateKey+"T00:00:00").toLocaleDateString())];
+ const rows=group.students.slice(0,20).map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")]);
+ box.className="report-preview surface pale";
+ box.innerHTML='<h3 class="report-preview-title">'+safe(title.title)+'</h3><p class="tiny">Showing '+Math.min(group.students.length,20)+' of '+group.students.length+' alphabetically sorted learners. '+groups.length+' report group(s) match current filters. The PDF export includes every matching group.</p><table><thead><tr>'+headings.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+safe(x)+'</td>').join("")+'</tr>').join("")+'</tbody></table>';
+}
+let reportPreviewTimer=null;
+async function updateAttendanceReportPreview(force=false){
+ const box=$("#attendance-report-preview");if(!box)return;
+ box.textContent="Updating attendance report…";
+ try{const records=await loadAttendanceReportRecords(force),groups=buildAttendanceReportGroups(records,reportFilters());renderAttendanceReportPreview(groups);}
+ catch(error){box.className="report-preview empty";box.textContent=err(error);}
+}
+if(!document.documentElement.dataset.reportFiltersBound){
+ document.documentElement.dataset.reportFiltersBound="1";
+ document.addEventListener("change",event=>{if(event.target?.closest(".report-filter-grid")){clearTimeout(reportPreviewTimer);reportPreviewTimer=setTimeout(()=>updateAttendanceReportPreview(),120)}});
+ document.addEventListener("input",event=>{if(event.target?.matches("#report-date-from,#report-date-to")){clearTimeout(reportPreviewTimer);reportPreviewTimer=setTimeout(()=>updateAttendanceReportPreview(),180)}});
+}
 $("#export-pdf").onclick=async()=>{
  const btn=$("#export-pdf");btn.disabled=true;
  try{
   if(!window.jspdf?.jsPDF)throw Error("PDF library is still loading. Try again in a moment.");
-  let records=[];
-  if(["owner","institution_admin"].includes(role())){
-   const [snap,absenceSnap]=await Promise.all([getDocs(col("attendance")),getDocs(col("absences"))]);
-   records=[...snap.docs,...absenceSnap.docs].map(d=>({id:d.id,...d.data()}));
-  }else if(["campus_admin","lecturer"].includes(role())){
-   const sessionSnaps=await Promise.all(st.sessions.map(s=>Promise.all([getDocs(query(col("attendance"),where("sessionId","==",s.id))),getDocs(query(col("absences"),where("sessionId","==",s.id)))])));
-   records=sessionSnaps.flatMap(pair=>pair.flatMap(x=>x.docs.map(d=>({id:d.id,...d.data()}))));
-  }else throw Error("Attendance reports are not available for this account.");
-  const filters={category:$("#report-category-filter")?.value||"",campus:$("#report-campus-filter")?.value||"",programme:$("#report-programme-filter")?.value||"",unit:$("#report-course-unit-filter")?.value||"",year:$("#report-academic-year-filter")?.value||"",semester:$("#report-semester-filter")?.value||"",from:$("#report-date-from")?.value||"",to:$("#report-date-to")?.value||""};
-  if(filters.from&&filters.to&&filters.from>filters.to)throw Error("The report start date must be on or before the end date.");
-  const ms=v=>v?.toMillis?v.toMillis():Number(v)||0;
-  const sessions=st.sessions.filter(s=>{
-   if(filters.campus&&s.campusId!==filters.campus)return false;
-   if(filters.unit&&s.courseUnitId!==filters.unit)return false;
-   if(filters.year&&s.academicYearId!==filters.year)return false;
-   const semesters=Array.isArray(s.semesterIds)&&s.semesterIds.length?s.semesterIds:[s.semesterId].filter(Boolean);
-   if(filters.semester&&!semesters.includes(filters.semester))return false;
-   const category=s.sessionType==="class"?"__class__":s.sessionGroupMode==="combined"?"__combined__":(s.teachingGroupId||"");
-   if(filters.category&&category!==filters.category)return false;
-   const started=ms(s.openedAt||s.createdAt);
-   if(filters.from&&started<new Date(filters.from+"T00:00:00").getTime())return false;
-   if(filters.to&&started>=new Date(filters.to+"T00:00:00").getTime()+86400000)return false;
-   return true;
-  });
-  const sessionIds=new Set(sessions.map(s=>s.id));
-  records=records.filter(r=>sessionIds.has(r.sessionId)&&(!filters.programme||r.programmeId===filters.programme));
-  const sessionsById=new Map(sessions.map(s=>[s.id,s]));
-  const categoryKey=s=>s.sessionType==="class"?"__class__":s.sessionGroupMode==="combined"?"__combined__":(s.teachingGroupId||"__uncategorised__");
-  const categoryLabel=key=>key==="__class__"?"Programme sessions":key==="__combined__"?"Combined / all session groups":key==="__uncategorised__"?"Uncategorised":(st.teachingGroups.find(g=>g.id===key)?.name||"Session group");
-  const grouped=new Map();
-  for(const r of records){const session=sessionsById.get(r.sessionId);if(!session)continue;const key=categoryKey(session);if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push({record:r,session});}
+  const records=await loadAttendanceReportRecords(true),groups=buildAttendanceReportGroups(records,reportFilters());
+  if(!groups.length)throw Error("No course-unit attendance records match the selected filters.");
   const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"});
-  const categories=[...grouped.keys()].sort((a,b)=>a.localeCompare(b));
-  if(!categories.length)throw Error("No attendance records match the selected report filters.");
-  categories.forEach((category,categoryIndex)=>{
-   if(categoryIndex)pdf.addPage();
-   let y=14;const items=grouped.get(category)||[],categoryName=categoryLabel(category);
-   const selectedCampus=filters.campus?st.campuses.find(c=>c.id===filters.campus)?.name:"All campuses";
-   const selectedProgramme=filters.programme?st.programmes.find(p=>p.id===filters.programme)?.name:"All programmes";
-   const selectedYear=filters.year?st.academicYears.find(a=>a.id===filters.year)?.name:"All academic years";
-   const selectedSemester=filters.semester?st.semesters.find(a=>a.id===filters.semester)?.name:"All semesters";
-   const uniqueSessions=[...new Set(items.map(x=>x.session.id))];
-   const presentCount=items.filter(x=>x.record.status==="present").length;
-   const absentCount=items.filter(x=>x.record.status==="absent").length;
-   const recorded=presentCount+absentCount,percentage=recorded?Math.round(presentCount/recorded*100):0;
-   pdf.setFontSize(16);pdf.text("STUDENT ATTENDANCE REPORT",14,y);y+=7;
-   pdf.setFontSize(8.5);
-   pdf.text("Institution: "+String(st.inst?.name||"").slice(0,100),14,y);y+=5;
-   pdf.text("Campus: "+selectedCampus+"    Session category: "+categoryName+"    Generated: "+new Date().toLocaleString(),14,y);y+=5;
-   const department=filters.programme?(st.programmes.find(p=>p.id===filters.programme)?.department||selectedProgramme):"All departments / programmes";
-   pdf.text("Department: "+String(department).slice(0,100)+"    Academic year: "+selectedYear+"    Semester: "+selectedSemester,14,y);y+=7;
-   pdf.setFontSize(9);
-   pdf.text("Summary: Sessions held "+uniqueSessions.length+"   Present "+presentCount+"   Absent "+absentCount+"   Attendance "+percentage+"%",14,y);y+=7;
-   const rows=[["Date","Start","End","Registration no.","Student name","Study year","Academic year","Semester","Programme","Course unit","Status"],...items.map(({record:r,session:s})=>{
-    const unit=st.courseUnits.find(u=>u.id===s.courseUnitId),opened=ms(s.openedAt||s.createdAt),ended=ms(s.expiresAt);
-    const programme=st.programmes.find(p=>p.id===r.programmeId)?.name||klass(r.classId)||"";
-    const academicYear=st.academicYears.find(a=>a.id===(r.academicYearId||s.academicYearId))?.name||r.academicYearId||s.academicYearId||"";
-    const semester=st.semesters.find(a=>a.id===(r.semesterId||s.semesterId))?.name||r.semesterId||s.semesterId||"";
-    return [opened?new Date(opened).toLocaleDateString():"",opened?new Date(opened).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",ended?new Date(ended).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",r.studentNumber||"",r.studentName||"",r.studyYear||s.studyYear||"",academicYear,semester,programme,unit?.name||s.title||"Course session",r.status||""];
-   })];
-   const widths=[18,15,15,25,32,18,24,20,35,45,18];pdf.setFontSize(7.2);
+  groups.forEach((group,groupIndex)=>{
+   if(groupIndex)pdf.addPage();
+   const title=reportGroupTitle(group),dates=group.dates;
+   let y=13;
+   pdf.setFontSize(12);pdf.text("STUDENT ATTENDANCE REPORT",10,y);y+=6;
+   pdf.setFontSize(8);
+   pdf.text("Campus: "+title.campusName+" | Programme: "+title.programmeName,10,y);y+=4.5;
+   pdf.text("Course unit: "+title.unitName+" | Study year: "+(group.studyYear||"—")+" | Semester: "+title.semesterName,10,y);y+=4.5;
+   pdf.text("Lecturer: "+title.lecturer+" | Institution: "+String(st.inst?.name||""),10,y);y+=6;
+   const rows=[["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(d=>d.dateKey==="unknown-date"?"DATE":new Date(d.dateKey+"T00:00:00").toLocaleDateString())],...group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")])];
+   const pageWidth=277,baseWidths=[10,29,38,34,22],dateWidth=Math.max(10,(pageWidth-baseWidths.reduce((x,y)=>x+y,0))/Math.max(1,dates.length)),widths=[...baseWidths,...dates.map(()=>dateWidth)];
+   const fontSize=dates.length>12?5.2:dates.length>8?6:7;pdf.setFontSize(fontSize);
    for(let ri=0;ri<rows.length;ri++){
-    const row=rows[ri];let x=12;const rowH=ri===0?8:6;
-    if(y+rowH>177){pdf.addPage();y=14;pdf.setFontSize(7.5)}
-    if(ri===0){pdf.setFillColor(230,240,234);pdf.rect(11,y-5,275,8,"F")}
-    for(let ci=0;ci<row.length;ci++){const value=pdf.splitTextToSize(String(row[ci]??""),widths[ci]-1)[0]||"";pdf.text(value,x,y);x+=widths[ci]}
-    y+=rowH;
+    const row=rows[ri],height=ri===0?10:7;
+    if(y+height>190){pdf.addPage();y=14;pdf.setFontSize(fontSize)}
+    if(ri===0){pdf.setFillColor(230,240,234);pdf.rect(9,y-5,pageWidth,10,"F")}
+    let x=10;
+    for(let ci=0;ci<row.length;ci++){
+     const width=widths[ci],value=String(row[ci]??"");
+     const lines=pdf.splitTextToSize(value,Math.max(7,width-1));
+     pdf.text(lines[0]||"",x,y);x+=width;
+    }
+    y+=height;
    }
-   if(y>174){pdf.addPage();y=18}
-   y+=8;pdf.setFontSize(8);
-   pdf.text("Lecturer: ______________________________",14,y);
-   pdf.text("Coordinator: ___________________________",112,y);
-   pdf.text("Head of Department: ____________________",210,y);
+   y+=7;if(y>190){pdf.addPage();y=16}
+   pdf.setFontSize(8);pdf.text("Lecturer signature: __________________________",10,y);pdf.text("Head of Department: __________________________",145,y);
   });
-  pdf.save("intercampus-session-attendance-reports.pdf");
-  msg("report-message","Filtered A4 landscape reports downloaded separately for each session category, with summary totals and signature lines.",true);
+  pdf.save("intercampus-course-unit-attendance-reports.pdf");
+  msg("report-message",groups.length+" course-unit report(s) downloaded. Each report is separated by campus, programme, course unit, study year, semester and lecturer.",true);
  }catch(e){msg("report-message",err(e))}
  finally{btn.disabled=false}
 };
