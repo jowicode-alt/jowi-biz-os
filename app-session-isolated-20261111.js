@@ -539,19 +539,28 @@ $("#export-pdf").onclick=async()=>{
    pdf.text("Course unit: "+title.unitName+" | Study year: "+(group.studyYear||"—")+" | Semester: "+title.semesterName,10,y);y+=4.5;
    pdf.text("Lecturer: "+title.lecturer+" | Institution: "+String(st.inst?.name||""),10,y);y+=6;
    const rows=[["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(reportDateColumnLabel)],...group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")])];
-   const pageWidth=277,baseWidths=[10,29,38,34,22],dateWidth=Math.max(10,(pageWidth-baseWidths.reduce((x,y)=>x+y,0))/Math.max(1,dates.length)),widths=[...baseWidths,...dates.map(()=>dateWidth)];
-   const fontSize=dates.length>12?5.2:dates.length>8?6:7;pdf.setFontSize(fontSize);
-   for(let ri=0;ri<rows.length;ri++){
-    const row=rows[ri],height=ri===0?10:7;
-    if(y+height>190){pdf.addPage();y=14;pdf.setFontSize(fontSize)}
-    if(ri===0){pdf.setFillColor(230,240,234);pdf.rect(9,y-5,pageWidth,10,"F")}
+   const pageWidth=277,baseWidths=[8,24,32,27,18],fixedWidth=baseWidths.reduce((x,y)=>x+y,0),dateWidth=dates.length?Math.max(3,(pageWidth-fixedWidth)/dates.length):pageWidth-fixedWidth,widths=[...baseWidths,...dates.map(()=>dateWidth)];
+   const minWidth=Math.min(...widths),fontSize=Math.max(3.6,Math.min(7,minWidth<6?3.8:minWidth<8?4.4:minWidth<11?5.2:6.2)),lineHeight=fontSize*0.48;
+   pdf.setFontSize(fontSize);
+   const prepareRow=row=>row.map((value,index)=>{
+    const width=widths[index],textValue=String(value??"");
+    return pdf.splitTextToSize(textValue,Math.max(1.8,width-1));
+   });
+   const prepared=rows.map(prepareRow),header=prepared[0];
+   const headerHeight=Math.max(1,...header.map(lines=>lines.length))*lineHeight+2.5;
+   const drawHeader=()=>{
+    pdf.setFontSize(fontSize);pdf.setFillColor(230,240,234);pdf.rect(9,y-2,pageWidth,headerHeight,"F");
     let x=10;
-    for(let ci=0;ci<row.length;ci++){
-     const width=widths[ci],value=String(row[ci]??"");
-     const lines=pdf.splitTextToSize(value,Math.max(7,width-1));
-     pdf.text(lines[0]||"",x,y);x+=width;
-    }
-    y+=height;
+    header.forEach((lines,index)=>{lines.forEach((line,lineIndex)=>pdf.text(line,x,y+lineIndex*lineHeight));x+=widths[index]});
+    y+=headerHeight+1;
+   };
+   drawHeader();
+   for(let ri=1;ri<prepared.length;ri++){
+    const cells=prepared[ri],rowLines=Math.max(1,...cells.map(lines=>lines.length)),rowHeight=rowLines*lineHeight+2;
+    if(y+rowHeight>190){pdf.addPage();y=14;drawHeader()}
+    let x=10;
+    cells.forEach((lines,index)=>{lines.forEach((line,lineIndex)=>pdf.text(line,x,y+lineIndex*lineHeight));x+=widths[index]});
+    y+=rowHeight;
    }
    y+=7;if(y>190){pdf.addPage();y=16}
    pdf.setFontSize(8);pdf.text("Lecturer signature: __________________________",10,y);pdf.text("Head of Department: __________________________",145,y);
