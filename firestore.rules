@@ -7,6 +7,14 @@ service cloud.firestore {
   function isSuperAdmin() { return hasProfile() && profile().email == 'fwizzard10@gmail.com' && profile().role == 'super_admin' && profile().status == 'active'; }
   function profile() { return get(userPath(request.auth.uid)).data; }
   function memberPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/members/$(uid); }
+  function billingAccessPath(id) { return /databases/$(database)/documents/institutions/$(id)/billingAccess/current; }
+  function hasCurrentBillingAccess(id) {
+   let path = billingAccessPath(id);
+   return exists(path)
+    && get(path).data.get('canOpenSessions', false) == true
+    && get(path).data.get('accessUntil', null) is timestamp
+    && get(path).data.accessUntil > request.time;
+  }
   function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
   function hasOwnStudent(id) { return signedIn() && exists(studentPath(id, request.auth.uid)); }
   function ownStudent(id) { return get(studentPath(id, request.auth.uid)).data; }
@@ -207,7 +215,7 @@ service cloud.firestore {
    let classId = data.get('classId','');
    let unitSession = unitId is string && unitId.size() > 0;
    let classSession = (data.get('programmeId','') is string && data.get('programmeId','').size() > 0) || (classId is string && classId.size() > 0);
-   return canTeachCampus(id,campusId) && data.get('createdBy','') == request.auth.uid
+   return hasCurrentBillingAccess(id) && canTeachCampus(id,campusId) && data.get('createdBy','') == request.auth.uid
     && data.get('status','') == 'active' && ((classSession && data.get('sessionType','') == 'class') || (!classSession && data.get('sessionType','') == 'course-unit')) && data.get('title','') is string && data.get('title','').size() > 0
     && campusId is string && campusId.size() > 0
     && ((classSession && validClassSessionCreate(id,data)) || (!classSession && unitSession && validCourseUnitSessionCreate(id,data)))
