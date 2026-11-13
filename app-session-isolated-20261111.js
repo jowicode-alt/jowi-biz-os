@@ -491,11 +491,13 @@ function reportGroupTitle(group){
 function renderAttendanceReportPreview(groups){
  const box=$("#attendance-report-preview");if(!box)return;
  if(!groups.length){box.className="report-preview surface pale";box.textContent="No attendance sessions and eligible learners match these filters.";return}
- const group=groups[0],title=reportGroupTitle(group),dates=group.dates;
- const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(d=>d.dateKey==="unknown-date"?"Date unavailable":new Date(d.dateKey+"T00:00:00").toLocaleDateString())];
- const rows=group.students.slice(0,20).map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")]);
  box.className="report-preview surface pale";
- box.innerHTML='<h3 class="report-preview-title">'+safe(title.title)+'</h3><p class="tiny">Showing '+Math.min(group.students.length,20)+' of '+group.students.length+' alphabetically sorted learners. '+groups.length+' report group(s) match current filters. The PDF export includes every matching group.</p><table><thead><tr>'+headings.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+safe(x)+'</td>').join("")+'</tr>').join("")+'</tbody></table>';
+ box.innerHTML=groups.map(group=>{
+  const title=reportGroupTitle(group),dates=group.dates;
+  const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(d=>d.dateKey==="unknown-date"?"Date unavailable":new Date(d.dateKey+"T00:00:00").toLocaleDateString())];
+  const rows=group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")]);
+  return '<section class="report-preview-group"><h3 class="report-preview-title">'+safe(title.title)+'</h3><p class="tiny">'+group.students.length+' learners · '+dates.length+' attendance date(s)</p><table><thead><tr>'+headings.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+safe(x)+'</td>').join("")+'</tr>').join("")+'</tbody></table></section>';
+ }).join("");
 }
 let reportPreviewTimer=null;
 async function updateAttendanceReportPreview(force=false){
