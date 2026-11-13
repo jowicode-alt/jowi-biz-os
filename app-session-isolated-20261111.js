@@ -497,7 +497,7 @@ function reportDateColumnLabel(dateEntry){
  const date=dateEntry.dateKey==="unknown-date"?"Date unavailable":new Date(dateEntry.dateKey+"T00:00:00").toLocaleDateString();
  const start=starts.length?clock(starts[0]):"Start unavailable";
  const end=ends.length?clock(ends[ends.length-1]):"Ongoing";
- return date+"\\n"+start+" – "+end;
+ return date+" "+start+"–"+end;
 }
 function renderAttendanceReportPreview(groups){
  const box=$("#attendance-report-preview");if(!box)return;
