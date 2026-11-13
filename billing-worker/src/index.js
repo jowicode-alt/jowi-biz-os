@@ -77,10 +77,13 @@ async function outstandingSeatBatch(ctx,sub,count,now,env){
 let ugxRatesCache=null;
 async function getUgxRates(env){
  if(ugxRatesCache&&ugxRatesCache.expiresAt>Date.now())return ugxRatesCache;
- const r=await fetch("https://open.er-api.com/v6/latest/UGX",{headers:{"accept":"application/json"}}),j=await r.json().catch(()=>({}));
- const rates=j.rates||{},updated=Number(j.time_last_update_unix||0)*1000;
- if(!r.ok||j.result!=="success"||!Number.isFinite(Number(rates.USD))||!updated||Date.now()-updated>48*60*60*1000)throw new Error("Live exchange rates are temporarily unavailable. Please try again later or choose UGX.");
- ugxRatesCache={rates,updatedAt:new Date(updated).toISOString(),expiresAt:Date.now()+6*60*60*1000};return ugxRatesCache;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),5000);
+ try{
+  const r=await fetch("https://open.er-api.com/v6/latest/UGX",{headers:{"accept":"application/json"},signal:controller.signal}),j=await r.json().catch(()=>({}));
+  const rates=j.rates||{},updated=Number(j.time_last_update_unix||0)*1000;
+  if(!r.ok||j.result!=="success"||!Number.isFinite(Number(rates.USD))||!updated||Date.now()-updated>48*60*60*1000)throw new Error("Live exchange rates are temporarily unavailable. Please try again later or choose UGX.");
+  ugxRatesCache={rates,updatedAt:new Date(updated).toISOString(),expiresAt:Date.now()+6*60*60*1000};return ugxRatesCache;
+ }finally{clearTimeout(timer);}
 }
 function convertUgx(ugx,rate,currency){const digits=["BIF","RWF","XAF","XOF"].includes(currency)?0:2;const factor=10**digits;return Math.max(0,Math.round((Number(ugx||0)*Number(rate)*factor)+1e-8)/factor);}
 function toUsd(ugx,rate){return convertUgx(ugx,rate,"USD");}
