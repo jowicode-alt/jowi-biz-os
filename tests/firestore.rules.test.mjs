@@ -121,6 +121,8 @@ try {
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/campuses/campus-1")));
   await assertFails(getDoc(doc(lecturer, "institutions/inst-1/campuses/campus-2")));
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/classes/class-1")));
+  await assertSucceeds(setDoc(doc(lecturer, "institutions/inst-1/classes/class-created-by-lecturer"), { name: "Lecturer-created class", code: "LECT-101", campusId: "campus-1", createdAt: serverTimestamp(), createdBy: "lecturer-1" }));
+  await assertFails(setDoc(doc(lecturer, "institutions/inst-1/classes/class-created-outside-campus"), { name: "Outside campus class", code: "LECT-102", campusId: "campus-2", createdAt: serverTimestamp(), createdBy: "lecturer-1" }));
   await assertFails(getDoc(doc(lecturer, "institutions/inst-1/classes/class-2")));
   await assertSucceeds(getDoc(doc(lecturer, "institutions/inst-1/students/student-reader")));
   await assertFails(getDoc(doc(lecturer, "institutions/inst-1/students/student-other-campus")));
