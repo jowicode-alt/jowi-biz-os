@@ -13,7 +13,7 @@ Never put secret values in browser JavaScript or commit them to GitHub. **Do not
 
 ## One-time Cloudflare setup
 
-1. In Cloudflare Dashboard, open **Workers & Pages → D1 SQL Database** and create a database named `intercampus-billing-db`.
+1. In Cloudflare Dashboard, open **Workers & Pages → D1 SQL Database** and create a database named `intercampus-billing`.
 2. Copy its database ID into `database_id` in `billing-worker/wrangler.toml`, replacing `CREATE_D1_DATABASE_FIRST`.
 3. Add the three initial GitHub Actions secrets above (the webhook secret can be added after webhook creation).
 4. Push/re-run the **Deploy InterCampus billing Worker** workflow. It applies the D1 migration and deploys the Worker.
