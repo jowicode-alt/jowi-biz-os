@@ -39,3 +39,6 @@ Never put secret values in browser JavaScript or commit them to GitHub. **Do not
 ## Important safety status
 
 This is an integration foundation, not permission to start taking live payments yet. The app does not enforce access restrictions for unpaid students, and institution-wide behavior after a trial expires remains intentionally unenforced pending the owner's policy decision. Before live launch, validate JJuma test-mode webhook payload/signature and verify endpoint response fields against a real test transaction. The UI must not be considered production-ready until the Worker is deployed and the app is pointed at its URL.
+
+
+Deployment configuration was updated for the existing `intercampus-billing` D1 database.
