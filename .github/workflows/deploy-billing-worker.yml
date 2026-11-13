@@ -23,10 +23,11 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           JJUMA_PUBLIC_KEY: ${{ secrets.JJUMA_PUBLIC_KEY }}
           JJUMA_SECRET_KEY: ${{ secrets.JJUMA_SECRET_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
         run: |
-          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ] || [ -z "$JJUMA_PUBLIC_KEY" ] || [ -z "$JJUMA_SECRET_KEY" ]; then
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ] || [ -z "$JJUMA_PUBLIC_KEY" ] || [ -z "$JJUMA_SECRET_KEY" ] || [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Deployment skipped. Cloudflare API token, account ID, JJuma public key and JJuma secret key are required."
+            echo "Deployment skipped. Cloudflare API token, account ID, JJuma keys and Firebase service-account credential are required."
           elif grep -q "CREATE_D1_DATABASE_FIRST" billing-worker/wrangler.toml; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Deployment skipped. Create the Cloudflare D1 database, then replace database_id in billing-worker/wrangler.toml."
@@ -53,9 +54,11 @@ jobs:
           JJUMA_PUBLIC_KEY: ${{ secrets.JJUMA_PUBLIC_KEY }}
           JJUMA_SECRET_KEY: ${{ secrets.JJUMA_SECRET_KEY }}
           JJUMA_WEBHOOK_SECRET: ${{ secrets.JJUMA_WEBHOOK_SECRET }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
         run: |
           printf '%s' "$JJUMA_PUBLIC_KEY" | npx wrangler secret put JJUMA_PUBLIC_KEY
           printf '%s' "$JJUMA_SECRET_KEY" | npx wrangler secret put JJUMA_SECRET_KEY
           if [ -n "$JJUMA_WEBHOOK_SECRET" ]; then printf '%s' "$JJUMA_WEBHOOK_SECRET" | npx wrangler secret put JJUMA_WEBHOOK_SECRET; fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | npx wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON
           npx wrangler deploy
 # Redeploy trigger: verify refreshed JJuma credentials (2026-11-13 second update).
