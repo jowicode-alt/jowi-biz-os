@@ -86,7 +86,8 @@ async function createCheckout(ctx,env){
   const r=await fetch("https://api.jjuma.com/api/v1/payments/create",{method:"POST",headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY,"content-type":"application/json"},body:JSON.stringify(payload)});
   const j=await r.json(); if(!r.ok||!j.payment_url||!j.transaction_id)throw new Error("JJuma could not create the checkout. Try again later.");
   const token=ctx.access;
-  await firestore(env,"institutions/"+ctx.institutionId+"/billingPayments/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId:j.transaction_id,reference:j.reference||"",externalOrderId:externalId,amount,currency:"UGX",studentCount:count,status:"pending",createdAt:new Date().toISOString()}))});\n  await firestore(env,"billingTransactions/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({institutionId:ctx.institutionId,transactionId:j.transaction_id,status:"pending"}))});
+  await firestore(env,"institutions/"+ctx.institutionId+"/billingPayments/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId:j.transaction_id,reference:j.reference||"",externalOrderId:externalId,amount,currency:"UGX",studentCount:count,status:"pending",createdAt:new Date().toISOString()}))});
+  await firestore(env,"billingTransactions/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({institutionId:ctx.institutionId,transactionId:j.transaction_id,status:"pending"}))});
   return {paymentUrl:j.payment_url,transactionId:j.transaction_id,amount,studentCount:count};
 }
 async function webhook(request,env){
