@@ -1,140 +1,19 @@
-import { SignJWT } from "jose";
-
-const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
-const response = (data, status=200) => new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
-const cors = (request, env) => {
-  const origin = request.headers.get("Origin") || "";
-  const allowed = (env.ALLOWED_ORIGINS || "").split(",").map(x=>x.trim()).filter(Boolean);
-  return allowed.includes(origin) ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Authorization,Content-Type", "Vary": "Origin" } : {};
-};
-function pemBytes(pem) {
-  const body = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
-  return Uint8Array.from(atob(body), c=>c.charCodeAt(0));
-}
-async function googleAccessToken(env) {
-  const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
-  const key = await crypto.subtle.importKey("pkcs8", pemBytes(sa.private_key), { name:"RSASSA-PKCS1-v1_5", hash:"SHA-256" }, false, ["sign"]);
-  const now = Math.floor(Date.now()/1000);
-  const assertion = await new SignJWT({ scope:"https://www.googleapis.com/auth/datastore" })
-    .setProtectedHeader({ alg:"RS256", typ:"JWT" }).setIssuer(sa.client_email)
-    .setSubject(sa.client_email).setAudience("https://oauth2.googleapis.com/token")
-    .setIssuedAt(now).setExpirationTime(now+3600).sign(key);
-  const r = await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"urn:ietf:params:oauth:grant-type:jwt-bearer",assertion})});
-  const j=await r.json(); if(!r.ok) throw new Error("Google service authentication failed"); return j.access_token;
-}
-async function verifyFirebase(idToken, env) {
-  const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key="+encodeURIComponent(env.FIREBASE_WEB_API_KEY),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({idToken})});
-  const j=await r.json(); if(!r.ok||!j.users?.[0]) throw new Error("Sign in again to continue");
-  return j.users[0];
-}
-async function firestore(env, path, token, options={}) {
-  const url="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/"+path;
-  const r=await fetch(url,{...options,headers:{Authorization:"Bearer "+token,...(options.headers||{})}});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok) { if(r.status===404)return null; throw new Error("Unable to read billing records"); }
-  return j;
-}
-function val(fields,key){const x=fields?.[key]; if(!x)return null; return x.stringValue??x.integerValue??x.booleanValue??x.timestampValue??null}
-function fsFields(obj){return {fields:Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,typeof v==="number"?{integerValue:String(v)}:typeof v==="boolean"?{booleanValue:v}:v===null?{nullValue:null}:{stringValue:String(v)}]))}}
-async function ownerContext(request,env){
-  const auth=request.headers.get("Authorization")||"", token=auth.startsWith("Bearer ")?auth.slice(7):"";
-  if(!token)throw new Error("Sign in to access billing");
-  const user=await verifyFirebase(token,env), access=await googleAccessToken(env);
-  const profile=await firestore(env,"users/"+user.localId,access);
-  const f=profile?.fields||{};
-  const role=val(f,"role"), institutionId=val(f,"institutionId");
-  if(role!=="owner"||!institutionId)throw new Error("Only the institution owner can manage subscription payments");
-  const institution=await firestore(env,"institutions/"+institutionId,access);
-  if(!institution)throw new Error("Institution record not found");
-  return {uid:user.localId,institutionId,access,institution};
-}
-async function activeStudents(ctx,env){
-  let next="", count=0, docs=[];
-  do {
-    const url="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/institutions/"+ctx.institutionId+"/students?pageSize=1000"+(next?"&pageToken="+encodeURIComponent(next):"");
-    const r=await fetch(url,{headers:{Authorization:"Bearer "+ctx.access}});
-    const j=await r.json(); if(!r.ok)throw new Error("Could not calculate registered student count");
-    for(const d of (j.documents||[])){if(val(d.fields,"status")==="active"){count++;docs.push(d);}}
-    next=j.nextPageToken||"";
-  } while(next);
-  return {count,docs};
-}
-function millis(timestamp){return timestamp?Date.parse(timestamp):0}
-function summaryData(institution, count){
-  const f=institution.fields||{}, sub=f.subscription?.mapValue?.fields||{};
-  const trialStart=val(sub,"trialStartedAt"),trialEnd=val(sub,"trialEndsAt"),status=val(sub,"status")||"trial";
-  const renewal=val(sub,"renewalAt"),paidThrough=val(sub,"paidThrough");
-  const now=Date.now(), trialActive=trialEnd&&millis(trialEnd)>now;
-  return {institutionName:val(f,"name")||"Institution",studentCount:count,rate:250,currency:"UGX",status:trialActive?"trial":status==="active"?"active":trialEnd?"expired":"not_configured",trialStartedAt:trialStart,trialEndsAt:trialEnd,trialDaysRemaining:trialActive?Math.ceil((millis(trialEnd)-now)/86400000):0,renewalAt:renewal,paidThrough,amountDue:trialActive?0:count*250,upcomingMonthlyAmount:count*250};
-}
-async function saveInstitution(ctx,env,patch){
-  const token=ctx.access, id=ctx.institutionId;
-  const fields={...(ctx.institution.fields||{}),subscription:{mapValue:{fields:Object.fromEntries(Object.entries(patch).map(([k,v])=>[k,typeof v==="number"?{integerValue:String(v)}:v===null?{nullValue:null}:{stringValue:String(v)}]))}}};
-  return firestore(env,"institutions/"+id+"?updateMask.fieldPaths=subscription",token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({fields:{subscription:fields.subscription}})});
-}
-async function createCheckout(ctx,env){
-  const {count}=await activeStudents(ctx,env);
-  if(count<1)throw new Error("There are no active registered students to bill");
-  const sub=ctx.institution.fields?.subscription?.mapValue?.fields||{};
-  const status=val(sub,"status")||"trial", paidThrough=val(sub,"paidThrough"), renewalAt=val(sub,"renewalAt");
-  const now=Date.now();
-  if(paidThrough&&millis(paidThrough)>now)throw new Error("Your current subscription is already paid. New-student billing will be enabled in the next billing update.");
-  const amount=count*250;
-  const externalId="IC-"+ctx.institutionId+"-"+crypto.randomUUID();
-  const origin=env.PUBLIC_APP_URL||"https://jowi-biz-os.web.app";
-  const payload={amount,currency:"UGX",customer_name:val(ctx.institution.fields,"name")||"InterCampus institution",redirect_url:origin,return_url:origin,cancel_redirect_url:origin,metadata:{institutionId:ctx.institutionId,ownerUid:ctx.uid,studentCount:count,rate:250,product:"InterCampus monthly subscription"},external_order_id:externalId,idempotency_key:externalId};
-  const r=await fetch("https://api.jjuma.com/api/v1/payments/create",{method:"POST",headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY,"content-type":"application/json"},body:JSON.stringify(payload)});
-  const j=await r.json(); if(!r.ok||!j.payment_url||!j.transaction_id)throw new Error("JJuma could not create the checkout. Try again later.");
-  const token=ctx.access;
-  await firestore(env,"institutions/"+ctx.institutionId+"/billingPayments/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId:j.transaction_id,reference:j.reference||"",externalOrderId:externalId,amount,currency:"UGX",studentCount:count,status:"pending",createdAt:new Date().toISOString()}))});
-  await firestore(env,"billingTransactions/"+j.transaction_id,token,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({institutionId:ctx.institutionId,transactionId:j.transaction_id,status:"pending"}))});
-  return {paymentUrl:j.payment_url,transactionId:j.transaction_id,amount,studentCount:count};
-}
-async function webhook(request,env){
-  const raw=await request.text(), signature=request.headers.get("X-Jjuma-Signature")||"", stamp=request.headers.get("X-Jjuma-Timestamp")||"";
-  if(!env.JJUMA_WEBHOOK_SECRET||!signature||!stamp) return response({error:"Invalid webhook"},401);
-  if(Math.abs(Date.now()/1000-Number(stamp))>300)return response({error:"Expired webhook"},401);
-  const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(env.JJUMA_WEBHOOK_SECRET),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
-  const signed=new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(stamp+"."+raw)));
-  const hex=[...signed].map(x=>x.toString(16).padStart(2,"0")).join("");
-  if(hex!==signature.replace(/^sha256=/,""))return response({error:"Invalid signature"},401);
-  const event=JSON.parse(raw), data=event.data||event, transactionId=data.transaction_id||data.id;
-  if(!transactionId)return response({received:true});
-  if(!["payment.completed","payment.success"].includes(request.headers.get("X-Jjuma-Event")||event.event))return response({received:true});
-  const access=await googleAccessToken(env);
-  const tx=await firestore(env,"institutions/"+data.metadata?.institutionId+"/billingPayments/"+transactionId,access);
-  if(!tx)return response({received:true});
-  if(val(tx.fields,"status")==="paid")return response({received:true,duplicate:true});
-  const payment=await fetch("https://api.jjuma.com/api/v1/payments/verify/"+encodeURIComponent(transactionId),{headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY}});
-  const verified=await payment.json();
-  if(!payment.ok||!["completed","success","paid"].includes(String(verified.status||verified.data?.status||"").toLowerCase()))return response({error:"Payment not verified"},400);
-  const now=new Date(), renewal=new Date(now); const day=renewal.getDate(); renewal.setDate(1); renewal.setMonth(renewal.getMonth()+1); const lastDay=new Date(renewal.getFullYear(),renewal.getMonth()+1,0).getDate(); renewal.setDate(Math.min(day,lastDay));
-  await firestore(env,"institutions/"+institutionId+"/billingPayments/"+transactionId,access,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(fsFields({transactionId,status:"paid",verifiedAt:now.toISOString(),amount:Number(val(tx.fields,"amount")||0),studentCount:Number(val(tx.fields,"studentCount")||0)}))});
-  const inst=await firestore(env,"institutions/"+institutionId,access);
-  const current=inst.fields||{};
-  const fields={...current,subscription:{mapValue:{fields:{status:{stringValue:"active"},lastPaymentAt:{stringValue:now.toISOString()},renewalAt:{stringValue:renewal.toISOString()},paidThrough:{stringValue:renewal.toISOString()},lastPaidStudentCount:{integerValue:String(val(tx.fields,"studentCount")||0)},lastTransactionId:{stringValue:transactionId}}}}};
-  await firestore(env,"institutions/"+institutionId+"?updateMask.fieldPaths=subscription",access,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({fields:{subscription:fields.subscription}})});
-  return response({received:true});
-}
-export default {async fetch(request,env){
-  const url=new URL(request.url);
-  if(request.method==="OPTIONS")return new Response(null,{status:204,headers:{...cors(request,env)}});
-  if(url.pathname==="/webhooks/jjuma"&&request.method==="POST")return webhook(request,env);
-  if(url.pathname==="/health")return response({ok:true,service:"InterCampus billing"});
-  const headers={...JSON_HEADERS,...cors(request,env)};
-  try{
-    if(!["GET","POST"].includes(request.method))return response({error:"Method not allowed"},405);
-    const ctx=await ownerContext(request,env);
-    if(url.pathname==="/billing/summary"&&request.method==="GET"){
-      const {count}=await activeStudents(ctx,env);
-      const data=summaryData(ctx.institution,count);
-      
-      return new Response(JSON.stringify(data),{headers});
-    }
-    if(url.pathname==="/billing/checkout"&&request.method==="POST"){
-      const result=await createCheckout(ctx,env);
-      return new Response(JSON.stringify(result),{headers});
-    }
-    return response({error:"Not found"},404);
-  }catch(e){return new Response(JSON.stringify({error:e.message||"Billing request failed"}),{status:400,headers});}
-}};
+const JSON_HEADERS = { "content-type":"application/json; charset=utf-8", "cache-control":"no-store" };
+const json = (data,status=200,headers={}) => new Response(JSON.stringify(data),{status,headers:{...JSON_HEADERS,...headers}});
+const encoder = new TextEncoder();
+const iso = value => value ? new Date(value).toISOString() : null;
+const addCalendarMonth = value => { const d=new Date(value), day=d.getUTCDate(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+1); d.setUTCDate(Math.min(day,new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate())); return d; };
+const money = n => Math.max(0,Math.ceil(Number(n)||0));
+function cors(request,env){const origin=request.headers.get("Origin")||"",allowed=(env.ALLOWED_ORIGINS||"").split(",").map(x=>x.trim()).filter(Boolean);return allowed.includes(origin)?{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Methods":"GET,POST,OPTIONS","Access-Control-Allow-Headers":"Authorization,Content-Type","Vary":"Origin"}:{};}
+function field(fields,key){const v=fields?.[key];return v?.stringValue??v?.integerValue??v?.booleanValue??v?.timestampValue??null;}
+async function firebaseUser(token,env){const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key="+encodeURIComponent(env.FIREBASE_WEB_API_KEY),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({idToken:token})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.users?.[0])throw new Error("Your sign-in has expired. Sign in again.");return j.users[0];}
+async function firestoreRead(path,token,env){const url="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/"+path;const r=await fetch(url,{headers:{Authorization:"Bearer "+token}});const j=await r.json().catch(()=>({}));if(r.status===404)return null;if(!r.ok)throw new Error("Your account is not permitted to read the institution billing data.");return j;}
+async function ownerContext(request,env){const auth=request.headers.get("Authorization")||"",token=auth.startsWith("Bearer ")?auth.slice(7):"";if(!token)throw new Error("Sign in to access billing.");const user=await firebaseUser(token,env),uid=user.localId;const profile=await firestoreRead("users/"+uid,token,env),pf=profile?.fields||{};const institutionId=field(pf,"institutionId");if(field(pf,"role")!=="owner"||!institutionId||field(pf,"status")!=="active")throw new Error("Only the active institution owner can manage subscription payments.");const institution=await firestoreRead("institutions/"+institutionId,token,env);if(!institution||field(institution.fields,"ownerId")!==uid)throw new Error("Institution ownership could not be verified.");const member=await firestoreRead("institutions/"+institutionId+"/members/"+uid,token,env);if(!member||field(member.fields,"role")!=="owner"||field(member.fields,"status")!=="active")throw new Error("Your institution owner access is not active.");return {uid,institutionId,token,institution};}
+async function activeStudentCount(ctx,env){let pageToken="",count=0;do{const url=new URL("https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/institutions/"+ctx.institutionId+"/students");url.searchParams.set("pageSize","1000");if(pageToken)url.searchParams.set("pageToken",pageToken);const r=await fetch(url,{headers:{Authorization:"Bearer "+ctx.token}}),j=await r.json().catch(()=>({}));if(!r.ok)throw new Error("Could not securely count active registered students. Check owner access to the student register.");for(const doc of j.documents||[])if(field(doc.fields,"status")==="active")count++;pageToken=j.nextPageToken||"";}while(pageToken);return count;}
+async function subscription(ctx,env){let row=await env.DB.prepare("SELECT * FROM subscriptions WHERE institution_id=?").bind(ctx.institutionId).first();if(row)return row;const created=ctx.institution.fields?.createdAt?.timestampValue;const createdMs=created?Date.parse(created):0;const rollout=Date.parse(env.BILLING_ROLLOUT_AT||"2026-11-13T00:00:00.000Z");const trialStart=createdMs>=rollout?createdMs:0;const trialEnd=trialStart?trialStart+14*86400000:0;const status=trialEnd>Date.now()?"trial":"payment_required";await env.DB.prepare("INSERT OR IGNORE INTO subscriptions (institution_id,status,trial_started_at,trial_ends_at,paid_student_count,created_at,updated_at) VALUES (?,?,?,?,0,?,?)").bind(ctx.institutionId,status,trialStart||null,trialEnd||null,Date.now(),Date.now()).run();return await env.DB.prepare("SELECT * FROM subscriptions WHERE institution_id=?").bind(ctx.institutionId).first();}
+async function outstandingSeatBatch(ctx,sub,count,now,env){const paid=Number(sub.paid_student_count||0);if(count<=paid)return null;let batch=await env.DB.prepare("SELECT * FROM seat_grace_batches WHERE institution_id=? AND status='grace' ORDER BY created_at DESC LIMIT 1").bind(ctx.institutionId).first();if(!batch){const seats=count-paid,created=now,ends=now+7*86400000,id=crypto.randomUUID();await env.DB.prepare("INSERT INTO seat_grace_batches (id,institution_id,seat_count,grace_started_at,grace_ends_at,status,created_at) VALUES (?,?,?,?,?,'grace',?)").bind(id,ctx.institutionId,seats,created,ends,created).run();batch=await env.DB.prepare("SELECT * FROM seat_grace_batches WHERE id=?").bind(id).first();}return batch;}
+async function summary(ctx,env){const now=Date.now(),count=await activeStudentCount(ctx,env),sub=await subscription(ctx,env),batch=await outstandingSeatBatch(ctx,sub,count,now,env);const paidThrough=Number(sub.paid_through||0),trialEnd=Number(sub.trial_ends_at||0),trialActive=sub.status==="trial"&&trialEnd>now,paidActive=sub.status==="active"&&paidThrough>now;let amountDue=0,billingType="initial";if(trialActive)amountDue=0;else if(paidActive&&count>Number(sub.paid_student_count||0)){billingType="additional_seats";const remaining=paidThrough-now,period=Math.max(1,paidThrough-Number(sub.period_started_at||now));amountDue=money((count-Number(sub.paid_student_count||0))*250*remaining/period);}else if(!paidActive){amountDue=count*250;}const history=await env.DB.prepare("SELECT transaction_id,reference,amount,student_count,status,created_at,paid_at FROM billing_transactions WHERE institution_id=? ORDER BY created_at DESC LIMIT 20").bind(ctx.institutionId).all();return {institutionName:field(ctx.institution.fields,"name")||"Institution",studentCount:count,rate:250,currency:"UGX",status:trialActive?"trial":paidActive?"active":sub.status==="active"?"expired":sub.status,trialStartedAt:iso(sub.trial_started_at),trialEndsAt:iso(trialEnd),trialDaysRemaining:trialActive?Math.ceil((trialEnd-now)/86400000):0,renewalAt:iso(paidThrough),paidThrough:iso(paidThrough),paidStudentCount:Number(sub.paid_student_count||0),additionalUnpaidStudents:Math.max(0,count-Number(sub.paid_student_count||0)),graceEndsAt:iso(batch?.grace_ends_at),amountDue,upcomingMonthlyAmount:count*250,billingType,paymentHistory:(history.results||[]).map(x=>({...x,createdAt:iso(x.created_at),paidAt:iso(x.paid_at)}))};}
+async function checkout(ctx,env){const count=await activeStudentCount(ctx,env);if(count<1)throw new Error("There are no active registered students to bill.");const sub=await subscription(ctx,env),now=Date.now(),paidThrough=Number(sub.paid_through||0),paidActive=sub.status==="active"&&paidThrough>now;let amount=count*250,type="initial",renewalAt=null;if(paidActive){const paidCount=Number(sub.paid_student_count||0),newSeats=count-paidCount;if(newSeats<=0)throw new Error("There are no additional unpaid students. Your current subscription is up to date.");const periodStart=Number(sub.period_started_at||now),remaining=paidThrough-now,period=Math.max(1,paidThrough-periodStart);amount=money(newSeats*250*remaining/period);type="additional_seats";renewalAt=paidThrough;}if(amount<1)throw new Error("The calculated amount is zero. Contact support before retrying.");const id=crypto.randomUUID(),external="IC-"+ctx.institutionId+"-"+id;await env.DB.prepare("INSERT INTO billing_transactions (id,institution_id,external_order_id,amount,currency,student_count,seat_count,billing_type,status,created_at) VALUES (?,?,?,?, 'UGX',?,?,?,'initiating',?)").bind(id,ctx.institutionId,external,amount,count,paidActive?count-Number(sub.paid_student_count||0):count,type,now).run();const origin=env.PUBLIC_APP_URL||"https://jowi-biz-os.web.app";const payload={amount,currency:"UGX",customer_name:field(ctx.institution.fields,"name")||"InterCampus institution",redirect_url:origin,return_url:origin,cancel_redirect_url:origin,metadata:{product:"InterCampus subscription",institutionId:ctx.institutionId,transactionKey:id,studentCount:count,billingType:type},external_order_id:external,idempotency_key:external};const r=await fetch("https://api.jjuma.com/api/v1/payments/create",{method:"POST",headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY,"content-type":"application/json"},body:JSON.stringify(payload)}),j=await r.json().catch(()=>({}));if(!r.ok||!j.payment_url||!j.transaction_id){await env.DB.prepare("UPDATE billing_transactions SET status='failed' WHERE id=?").bind(id).run();throw new Error("JJuma could not create checkout. Please try again later.");}await env.DB.prepare("UPDATE billing_transactions SET transaction_id=?,reference=?,payment_url=?,status='pending' WHERE id=?").bind(String(j.transaction_id),String(j.reference||""),String(j.payment_url),id).run();return {paymentUrl:j.payment_url,transactionId:j.transaction_id,amount,studentCount:count,billingType:type};}
+function constantTimeEqual(a,b){if(a.length!==b.length)return false;let v=0;for(let i=0;i<a.length;i++)v|=a.charCodeAt(i)^b.charCodeAt(i);return v===0;}
+async function webhook(request,env){if(!env.JJUMA_WEBHOOK_SECRET||!env.JJUMA_SECRET_KEY)return json({error:"Webhook is not configured"},503);const raw=await request.text(),sig=request.headers.get("X-Jjuma-Signature")||"",stamp=request.headers.get("X-Jjuma-Timestamp")||"";if(!sig||!/^\d+$/.test(stamp)||Math.abs(Date.now()/1000-Number(stamp))>300)return json({error:"Invalid or expired webhook"},401);const key=await crypto.subtle.importKey("raw",encoder.encode(env.JJUMA_WEBHOOK_SECRET),{name:"HMAC",hash:"SHA-256"},false,["sign"]),mac=new Uint8Array(await crypto.subtle.sign("HMAC",key,encoder.encode(stamp+"."+raw))),hex=[...mac].map(b=>b.toString(16).padStart(2,"0")).join("");if(!constantTimeEqual(hex,sig.replace(/^sha256=/,"")))return json({error:"Invalid webhook signature"},401);let event;try{event=JSON.parse(raw);}catch{return json({error:"Invalid JSON"},400);}const eventName=request.headers.get("X-Jjuma-Event")||event.event||"",data=event.data||event,txid=String(data.transaction_id||data.id||"");if(!txid)return json({received:true});const delivery=request.headers.get("X-Jjuma-Delivery-Id")||crypto.randomUUID();try{await env.DB.prepare("INSERT INTO webhook_events (delivery_id,event_name,received_at) VALUES (?,?,?)").bind(delivery,eventName,Date.now()).run();}catch{return json({received:true,duplicate:true});}if(!["payment.completed","payment.success"].includes(eventName))return json({received:true});const tx=await env.DB.prepare("SELECT * FROM billing_transactions WHERE transaction_id=?").bind(txid).first();if(!tx)return json({received:true,unmatched:true});if(tx.status==="paid")return json({received:true,duplicate:true});const verify=await fetch("https://api.jjuma.com/api/v1/payments/verify/"+encodeURIComponent(txid),{headers:{Authorization:"Bearer "+env.JJUMA_SECRET_KEY}}),verified=await verify.json().catch(()=>({})),vdata=verified.data||verified,status=String(vdata.status||verified.status||"").toLowerCase(),verifiedAmount=Number(vdata.amount??verified.amount??tx.amount);if(!verify.ok||!["completed","success","paid"].includes(status)||verifiedAmount!==Number(tx.amount))return json({error:"JJuma payment could not be verified against the expected amount."},400);const now=Date.now(),sub=await env.DB.prepare("SELECT * FROM subscriptions WHERE institution_id=?").bind(tx.institution_id).first();if(!sub)return json({error:"Subscription record not found"},409);if(tx.billing_type==="additional_seats"){await env.DB.prepare("UPDATE subscriptions SET paid_student_count=?,updated_at=? WHERE institution_id=?").bind(tx.student_count,now,tx.institution_id).run();await env.DB.prepare("UPDATE seat_grace_batches SET status='paid' WHERE institution_id=? AND status='grace'").bind(tx.institution_id).run();}else{const start=now,end=addCalendarMonth(now).getTime();await env.DB.prepare("UPDATE subscriptions SET status='active',period_started_at=?,paid_through=?,paid_student_count=?,last_payment_at=?,updated_at=? WHERE institution_id=?").bind(start,end,tx.student_count,now,now,tx.institution_id).run();}await env.DB.prepare("UPDATE billing_transactions SET status='paid',paid_at=? WHERE id=?").bind(now,tx.id).run();return json({received:true});}
+export default {async fetch(request,env){const url=new URL(request.url),headers=cors(request,env);if(request.method==="OPTIONS")return new Response(null,{status:204,headers});if(url.pathname==="/health")return json({ok:true,service:"InterCampus billing",storage:"Cloudflare D1"});if(url.pathname==="/webhooks/jjuma"&&request.method==="POST")return webhook(request,env);try{if(!["GET","POST"].includes(request.method))return json({error:"Method not allowed"},405,headers);const ctx=await ownerContext(request,env);if(url.pathname==="/billing/summary"&&request.method==="GET")return json(await summary(ctx,env),200,headers);if(url.pathname==="/billing/checkout"&&request.method==="POST")return json(await checkout(ctx,env),200,headers);return json({error:"Not found"},404,headers);}catch(e){return json({error:e.message||"Billing request failed"},400,headers);}}};
