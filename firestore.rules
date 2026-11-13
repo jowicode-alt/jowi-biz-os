@@ -9,11 +9,10 @@ service cloud.firestore {
   function memberPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/members/$(uid); }
   function billingAccessPath(id) { return /databases/$(database)/documents/institutions/$(id)/billingAccess/current; }
   function hasCurrentBillingAccess(id) {
-   let path = billingAccessPath(id);
-   let access = exists(path) ? get(path).data : {};
+   let access = get(billingAccessPath(id)).data;
    return access.get('canOpenSessions', false) == true
     && access.get('accessUntil', null) is timestamp
-    && access.get('accessUntil', request.time) > request.time;
+    && access.accessUntil > request.time;
   }
   function studentPath(id, uid) { return /databases/$(database)/documents/institutions/$(id)/students/$(uid); }
   function hasOwnStudent(id) { return signedIn() && exists(studentPath(id, request.auth.uid)); }
