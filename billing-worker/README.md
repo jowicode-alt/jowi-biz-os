@@ -17,7 +17,7 @@ Never put secret values in browser JavaScript or commit them to GitHub. **Do not
 2. Copy its database ID into `database_id` in `billing-worker/wrangler.toml`, replacing `CREATE_D1_DATABASE_FIRST`.
 3. Add the three initial GitHub Actions secrets above (the webhook secret can be added after webhook creation).
 4. Push/re-run the **Deploy InterCampus billing Worker** workflow. It applies the D1 migration and deploys the Worker.
-5. Set the deployed Worker URL as the app's `INTERCAMPUS_BILLING_API` configuration before enabling checkout.
+5. Configure `window.INTERCAMPUS_BILLING_API` in `index.html` to the deployed Worker URL. The Owner dashboard then loads its subscription summary and enables checkout only when an amount is due.
 6. In JJuma Dashboard → Tools → Webhooks, add `https://<worker-host>/webhooks/jjuma`, subscribe to `payment.completed`, then save its signing secret as `JJUMA_WEBHOOK_SECRET` and redeploy.
 
 ## Routes
@@ -38,7 +38,7 @@ Never put secret values in browser JavaScript or commit them to GitHub. **Do not
 
 ## Important safety status
 
-This is an integration foundation, not permission to start taking live payments yet. The app does not enforce access restrictions for unpaid students, and institution-wide behavior after a trial expires remains intentionally unenforced pending the owner's policy decision. Before live launch, validate JJuma test-mode webhook payload/signature and verify endpoint response fields against a real test transaction. The UI must not be considered production-ready until the Worker is deployed and the app is pointed at its URL.
+The Owner dashboard is connected to the Worker. A successful JJuma test webhook confirms signature validation and delivery only; it does not prove a real payment settlement. Before live launch, complete a JJuma test-mode payment and verify the server-side payment verification response and resulting D1 subscription/history updates. The app does not enforce access restrictions for unpaid students, and institution-wide behavior after a trial expires remains intentionally unenforced pending the owner's policy decision.
 
 
 Deployment configuration was updated for the existing `intercampus-billing` D1 database.
