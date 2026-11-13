@@ -36,15 +36,27 @@ async function syncEntitlement(institutionId,sub,env) {
  const now=Date.now(),trialEnd=Number(sub?.trial_ends_at||0),paidThrough=Number(sub?.paid_through||0);
  const trialActive=sub?.status==="trial"&&trialEnd>now,paidActive=sub?.status==="active"&&paidThrough>now;
  const canOpen=trialActive||paidActive,until=trialActive?trialEnd:paidActive?paidThrough:0;
- const status=trialActive?"trial":paidActive?"active":(sub?.status==="active"||sub?.status==="trial")?"expired":"payment_required";
- const fields={canOpenSessions:{booleanValue:canOpen},status:{stringValue:status},reason:{stringValue:canOpen?(trialActive?"trial_active":"subscription_paid"):"payment_required"},accessUntil:until?{timestampValue:new Date(until).toISOString()}:{nullValue:null},trialEndsAt:trialEnd?{timestampValue:new Date(trialEnd).toISOString()}:{nullValue:null},paidThrough:paidThrough?{timestampValue:new Date(paidThrough).toISOString()}:{nullValue:null},updatedAt:{timestampValue:new Date(now).toISOString()}};
+ const untilIso=until?new Date(until).toISOString():null;
  const token=await googleAccessToken(env);
- const url="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/institutions/"+encodeURIComponent(institutionId)+"/billingAccess/current";
- const response=await fetch(url,{method:"PATCH",headers:{Authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({fields})});
- if(!response.ok){const detail=await response.text().catch(()=> "");throw new Error("Could not update the institution's trusted billing access record ("+response.status+"). "+detail.slice(0,300));}
- return {canOpenSessions:canOpen,status,accessUntil:until?new Date(until).toISOString():null};
+ const base="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/institutions/"+encodeURIComponent(institutionId)+"/members";
+ let pageToken="";
+ do {
+  const listUrl=new URL(base);listUrl.searchParams.set("pageSize","1000");if(pageToken)listUrl.searchParams.set("pageToken",pageToken);
+  const listed=await fetch(listUrl,{headers:{Authorization:"Bearer "+token}}),data=await listed.json().catch(()=>({}));
+  if(!listed.ok)throw new Error("Could not read institution membership for billing access synchronization ("+listed.status+").");
+  for(const member of data.documents||[]){
+   const fields=member.fields||{},currentAllowed=fields.billingCanOpenSessions?.booleanValue,currentUntil=fields.billingAccessUntil?.timestampValue||null;
+   if(currentAllowed===canOpen&&currentUntil===untilIso)continue;
+   const uid=member.name.split("/").pop(),patchUrl=new URL(base+"/"+encodeURIComponent(uid));
+   patchUrl.searchParams.append("updateMask.fieldPaths","billingCanOpenSessions");
+   patchUrl.searchParams.append("updateMask.fieldPaths","billingAccessUntil");
+   const patched=await fetch(patchUrl,{method:"PATCH",headers:{Authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({fields:{billingCanOpenSessions:{booleanValue:canOpen},billingAccessUntil:untilIso?{timestampValue:untilIso}:{nullValue:null}}})});
+   if(!patched.ok)throw new Error("Could not synchronize billing access for an institution member ("+patched.status+").");
+  }
+  pageToken=data.nextPageToken||"";
+ } while(pageToken);
+ return {canOpenSessions:canOpen,status:trialActive?"trial":paidActive?"active":"payment_required",accessUntil:untilIso};
 }
-
 async function firebaseUser(token,env){const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:lookup?key="+encodeURIComponent(env.FIREBASE_WEB_API_KEY),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({idToken:token})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.users?.[0])throw new Error("Your sign-in has expired. Sign in again.");return j.users[0];}
 async function firestoreRead(path,token,env){const url="https://firestore.googleapis.com/v1/projects/"+env.FIREBASE_PROJECT_ID+"/databases/(default)/documents/"+path;const r=await fetch(url,{headers:{Authorization:"Bearer "+token}});const j=await r.json().catch(()=>({}));if(r.status===404)return null;if(!r.ok)throw new Error("Your account is not permitted to read the institution billing data.");return j;}
 async function ownerContext(request,env){const auth=request.headers.get("Authorization")||"",token=auth.startsWith("Bearer ")?auth.slice(7):"";if(!token)throw new Error("Sign in to access billing.");const user=await firebaseUser(token,env),uid=user.localId;const profile=await firestoreRead("users/"+uid,token,env),pf=profile?.fields||{};const institutionId=field(pf,"institutionId");if(field(pf,"role")!=="owner"||!institutionId||field(pf,"status")!=="active")throw new Error("Only the active institution owner can manage subscription payments.");const institution=await firestoreRead("institutions/"+institutionId,token,env);if(!institution||field(institution.fields,"ownerId")!==uid)throw new Error("Institution ownership could not be verified.");const member=await firestoreRead("institutions/"+institutionId+"/members/"+uid,token,env);if(!member||field(member.fields,"role")!=="owner"||field(member.fields,"status")!=="active")throw new Error("Your institution owner access is not active.");return {uid,institutionId,token,institution};}
