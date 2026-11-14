@@ -430,7 +430,7 @@ service cloud.firestore {
    }
    match /deviceRegistry/{deviceId} {
     function registryStudentPath() { return /databases/$(database)/documents/institutions/$(id)/students/$(request.auth.uid); }
-    allow get: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid);
+    allow get: if isInstitutionWideStaff(id) || (exists(/databases/$(database)/documents/institutions/$(id)/students/$(resource.data.studentUid)) && canStaffReadCampus(id, get(/databases/$(database)/documents/institutions/$(id)/students/$(resource.data.studentUid)).data.campusId)) || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid);
     allow list: if isInstitutionWideStaff(id);
     allow create: if signedIn() && !exists(/databases/$(database)/documents/institutions/$(id)/deviceRegistry/$(deviceId))
      && request.resource.data.studentUid == request.auth.uid
