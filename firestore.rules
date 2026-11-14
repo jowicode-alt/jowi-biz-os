@@ -428,6 +428,26 @@ service cloud.firestore {
     allow create, update: if canManageCampus(id, request.resource.data.campusId) && request.resource.data.keys().hasOnly(['name','code','campusId','createdAt','createdBy']);
     allow delete: if false;
    }
+   match /deviceRegistry/{deviceId} {
+    function registryStudentPath() { return /databases/$(database)/documents/institutions/$(id)/students/$(request.auth.uid); }
+    allow get: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) == 'student' && resource.data.studentUid == request.auth.uid);
+    allow list: if isInstitutionWideStaff(id);
+    allow create: if signedIn() && !exists(/databases/$(database)/documents/institutions/$(id)/deviceRegistry/$(deviceId))
+     && request.resource.data.studentUid == request.auth.uid
+     && request.resource.data.status == 'active'
+     && request.resource.data.createdAt == request.time
+     && request.resource.data.keys().hasOnly(['studentUid','status','createdAt'])
+     && ((exists(registryStudentPath()) && get(registryStudentPath()).data.authUid == request.auth.uid && get(registryStudentPath()).data.deviceId == deviceId)
+      || (existsAfter(registryStudentPath()) && getAfter(registryStudentPath()).data.authUid == request.auth.uid && getAfter(registryStudentPath()).data.deviceId == deviceId));
+    allow update: if canManageClass(id, get(/databases/$(database)/documents/institutions/$(id)/students/$(resource.data.studentUid)).data.classId)
+     && resource.data.status == 'active'
+     && request.resource.data.status == 'revoked'
+     && request.resource.data.studentUid == resource.data.studentUid
+     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','revokedAt','revokedBy'])
+     && request.resource.data.revokedAt == request.time
+     && request.resource.data.revokedBy == request.auth.uid;
+    allow delete: if false;
+   }
    match /students/{docId} {
     allow get: if isInstitutionWideStaff(id) || canStaffReadCampus(id, resource.data.campusId) || (inInstitution(id) && memberRole(id) == 'student' && request.auth.uid == docId);
     allow list: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer'] && resource.data.campusId == assignedCampus(id));
@@ -466,6 +486,9 @@ service cloud.firestore {
       && resource.data.deviceId == ''
       && request.resource.data.deviceId is string
       && request.resource.data.deviceId.size() >= 16
+      && existsAfter(/databases/$(database)/documents/institutions/$(id)/deviceRegistry/$(request.resource.data.deviceId))
+      && getAfter(/databases/$(database)/documents/institutions/$(id)/deviceRegistry/$(request.resource.data.deviceId)).data.studentUid == request.auth.uid
+      && getAfter(/databases/$(database)/documents/institutions/$(id)/deviceRegistry/$(request.resource.data.deviceId)).data.status == 'active'
       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceId'])
     );
     allow delete: if false;
