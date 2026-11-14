@@ -24,6 +24,7 @@ jobs:
           JJUMA_PUBLIC_KEY: ${{ secrets.JJUMA_PUBLIC_KEY }}
           JJUMA_SECRET_KEY: ${{ secrets.JJUMA_SECRET_KEY }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
+          SMS_ENCRYPTION_KEY: ${{ secrets.INTERCAMPUS_SMS_ENCRYPTION_KEY }}
         run: |
           if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ] || [ -z "$JJUMA_PUBLIC_KEY" ] || [ -z "$JJUMA_SECRET_KEY" ] || [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -56,6 +57,6 @@ jobs:
           JJUMA_WEBHOOK_SECRET: ${{ secrets.JJUMA_WEBHOOK_SECRET }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
         run: |
-          node -e 'const fs=require("fs");const s={JJUMA_PUBLIC_KEY:process.env.JJUMA_PUBLIC_KEY,JJUMA_SECRET_KEY:process.env.JJUMA_SECRET_KEY,FIREBASE_SERVICE_ACCOUNT_JSON:process.env.FIREBASE_SERVICE_ACCOUNT_JSON};if(process.env.JJUMA_WEBHOOK_SECRET)s.JJUMA_WEBHOOK_SECRET=process.env.JJUMA_WEBHOOK_SECRET;fs.writeFileSync(process.env.RUNNER_TEMP+"/worker-secrets.json",JSON.stringify(s),{mode:0o600});'
+          node -e 'const fs=require("fs");const s={JJUMA_PUBLIC_KEY:process.env.JJUMA_PUBLIC_KEY,JJUMA_SECRET_KEY:process.env.JJUMA_SECRET_KEY,FIREBASE_SERVICE_ACCOUNT_JSON:process.env.FIREBASE_SERVICE_ACCOUNT_JSON};if(process.env.SMS_ENCRYPTION_KEY)s.SMS_ENCRYPTION_KEY=process.env.SMS_ENCRYPTION_KEY;if(process.env.JJUMA_WEBHOOK_SECRET)s.JJUMA_WEBHOOK_SECRET=process.env.JJUMA_WEBHOOK_SECRET;fs.writeFileSync(process.env.RUNNER_TEMP+"/worker-secrets.json",JSON.stringify(s),{mode:0o600});'
           npx wrangler deploy --secrets-file "$RUNNER_TEMP/worker-secrets.json"
 # Redeploy trigger: verify refreshed JJuma credentials (2026-11-13 second update).
