@@ -164,7 +164,7 @@ keys.forEach(key=>{const el=$("#learner-filter-"+key);if(!el)return;const field=
 const search=$("#learner-search")?.value.trim().toLocaleLowerCase()||"";
 if(search)candidates=candidates.filter(s=>[s.name,s.studentNumber,s.registrationNumber,s.admissionNumber,s.email].some(v=>String(v||"").toLocaleLowerCase().includes(search)));
 candidates.sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),undefined,{sensitivity:"base"}));const active=candidates.filter(s=>s.status!=="inactive"),inactive=candidates.filter(s=>s.status==="inactive");
-const draw=(items,boxId,isInactive)=>{const box=$("#"+boxId);if(!box)return;box.className=items.length?"":"empty";box.innerHTML=items.length?items.map(s=>'<div class="record learner-record">'+avatarMarkup(s)+'<div class="learner-record-details"><b>'+safe(s.name)+'</b><small>'+safe(s.studentNumber||s.registrationNumber||s.admissionNumber||"Registration number not set")+' · '+safe(st.programmes.find(p=>p.id===s.programmeId)?.name||"Course not set")+'</small><small style="display:block">Campus: '+safe(s.campusId?campus(s.campusId):"Campus not assigned")+' · '+safe(s.studyYear||"Study year not set")+' · '+safe(s.semesterId?(st.semesters.find(x=>x.id===s.semesterId)?.name||s.semesterId):"Semester not set")+'</small></div><div class="session-actions">'+(isInactive?'<span class="tiny">Inactive</span>':'<button type="button" class="secondary" data-deactivate-student="'+safe(s.id)+'">Mark left</button>')+'</div></div>').join(""):"No "+(isInactive?"inactive":"active")+" learners found.";};
+const draw=(items,boxId,isInactive)=>{const box=$("#"+boxId);if(!box)return;box.className=items.length?"":"empty";box.innerHTML=items.length?items.map(s=>'<div class="record learner-record">'+avatarMarkup(s)+'<div class="learner-record-details"><b>'+safe(s.name)+'</b><small>'+safe(s.studentNumber||s.registrationNumber||s.admissionNumber||"Registration number not set")+' · '+safe(st.programmes.find(p=>p.id===s.programmeId)?.name||"Course not set")+'</small><small style="display:block">Campus: '+safe(s.campusId?campus(s.campusId):"Campus not assigned")+' · '+safe(s.studyYear||"Study year not set")+' · '+safe(s.semesterId?(st.semesters.find(x=>x.id===s.semesterId)?.name||s.semesterId):"Semester not set")+'</small></div><div class="session-actions">'+(isInactive?'<span class="tiny">Inactive</span>':'<button type="button" class="secondary" data-reset-student-device="'+safe(s.id)+'">Reset device</button><button type="button" class="secondary" data-deactivate-student="'+safe(s.id)+'">Mark left</button>')+'</div></div>').join(""):"No "+(isInactive?"inactive":"active")+" learners found.";};
 draw(active,"student-active-list",false);draw(inactive,"student-inactive-list",true);
 
 setText("#learner-register-count",active.length+" active · "+inactive.length+" inactive");
@@ -182,6 +182,21 @@ if(!document.documentElement.dataset.learnerRegisterHandlersBound){
    ["campus","class","programme","enrollment-year","study-year","academic-year","semester","teaching-group"].forEach(k=>{const el=$("#learner-filter-"+k);if(el)el.value=""});
    const search=$("#learner-search");if(search)search.value="";
    renderLearnerRegister();return;
+  }
+  const resetDeviceButton=event.target.closest("[data-reset-student-device]");
+  if(resetDeviceButton){
+   const studentId=resetDeviceButton.dataset.resetStudentDevice;
+   const learner=st.students.find(x=>x.id===studentId);
+   if(!learner)return;
+   if(!confirm("Reset the registered device for "+(learner.name||"this learner")+"? Their student account, password, enrolments and attendance history will remain unchanged. They will sign in on the replacement device using the SAME existing student login, then their next attendance check-in will securely register that device."))return;
+   resetDeviceButton.disabled=true;
+   try{
+    await updateDoc(doc(col("students"),studentId),{deviceId:"",deviceResetAt:serverTimestamp(),deviceResetBy:st.user.uid});
+    msg("student-message","Registered device reset. The learner can sign in on the replacement device using their existing account.",true);
+    await refresh();
+   }catch(error){msg("student-message","Device reset failed: "+err(error))}
+   finally{resetDeviceButton.disabled=false}
+   return;
   }
   const deactivateButton=event.target.closest("[data-deactivate-student]");
   if(!deactivateButton)return;
@@ -585,7 +600,7 @@ $("#student-checkin-form")?.addEventListener("submit",async e=>{
  const phase=label=>{const node=globalLoadingNode?.querySelector("#global-loading-label");if(node)node.textContent=label;};
  const checked=(promise,label)=>withTimeout(promise,15000,label+" is taking too long. Check your internet connection and try again.");
  try{
-  const institutionId=st.profile.institutionId,sessionId=$("#checkin-session-id").value.trim(),code=$("#checkin-code").value.trim(),studentId=st.user.uid,deviceId=await deviceToken(st.user.uid);
+  const institutionId=st.profile.institutionId,sessionId=$("#checkin-session-id").value.trim(),code=$("#checkin-code").value.trim(),studentId=st.user.uid,deviceId=await deviceToken(st.user.uid,true);await claimPhoneForNewStudent(st.user.uid);
   if(!/^\d{6}$/.test(code))throw Error("Enter the six-digit session code or scan the QR code.");
   phase("Checking your learner account and session…");
   const [studentSnap,sessionSnap]=await checked(Promise.all([getDoc(doc(db,"institutions",institutionId,"students",studentId)),getDoc(doc(db,"institutions",institutionId,"sessions",sessionId))]),"Account/session verification");
@@ -603,7 +618,7 @@ $("#student-checkin-form")?.addEventListener("submit",async e=>{
    attendanceContext={classId:student.classId||"",courseUnitId:session.courseUnitId,programmeId:enrolment.programmeId,studyYear:enrolment.studyYear||"",academicYearId:enrolment.academicYearId,semesterId:enrolment.semesterId,teachingGroupId:enrolment.teachingGroupId||"",enrolmentId:enrolmentSnap.id};
   }else if(student.classId!==session.classId||student.campusId!==session.campusId)throw Error("This session is not for your registered campus and class.");
   if(session.activeCode!==code||now-Number(session.codeUpdatedAt||0)>1860000)throw Error("The session code is incorrect or expired. Ask the lecturer to show the current code.");
-  if(String(student.deviceId||"")!==String(deviceId||""))throw Error("This Chrome installation does not match the device registered to your learner account. Opening another tab in the same Chrome profile should not change device binding. Do not clear this site’s storage; contact your administrator to verify or reset the registered device if you changed browser profiles or website addresses.");
+  if(!String(student.deviceId||"")){await checked(updateDoc(doc(db,"institutions",institutionId,"students",studentId),{deviceId}),"Replacement device registration");const rebound=await checked(getDoc(doc(db,"institutions",institutionId,"students",studentId)),"Device registration confirmation");if(!rebound.exists()||String(rebound.data().deviceId||"")!==String(deviceId))throw Error("This device could not be securely registered. Ask your institution administrator to reset the device again.");student.deviceId=deviceId;}else if(String(student.deviceId)!==String(deviceId))throw Error("This device is not registered to your learner account. Ask your institution administrator to reset your registered device.");
   phase("Checking your current location…");
   const position=await withTimeout(new Promise((resolve,reject)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>resolve(p.coords),error=>{const messages={1:"Location permission was denied. Allow location access for this site in Chrome, then try again.",2:"Your location is unavailable. Turn on device location and try again.",3:"Location request timed out. Move to an area with a clearer GPS signal and try again."};reject(Error(messages[error.code]||"Could not verify your location."));},{enableHighAccuracy:true,timeout:12000,maximumAge:0}):reject(Error("This browser does not support location checks."))),16000,"Location verification timed out. Enable location and try again.");
   if(!Number.isFinite(position.latitude)||!Number.isFinite(position.longitude)||position.accuracy>100)throw Error("Location accuracy is too low. Enable precise location and try again outdoors.");
