@@ -670,7 +670,7 @@ allow update, delete: if false;
    // Academic structure for shared course units. These collections are additive;
    // legacy classes and class-based attendance remain supported during migration.
    match /academicYears/{docId} {
-    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer']);
+    allow read: if isInstitutionWideStaff(id) || (inInstitution(id) && memberRole(id) in ['campus_admin','lecturer','student']);
     allow create, update: if isInstitutionStaff(id)
       && request.resource.data.keys().hasOnly(['name','startDate','endDate','status','createdAt','createdBy','archivedAt','archivedBy']);
     allow delete: if false;
