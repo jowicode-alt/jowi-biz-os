@@ -1,11 +1,6 @@
 name: Validate InterCampus before deployment
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches:
-      - safeguard/intercampus-uiCT-reference
   workflow_dispatch:
 
 permissions:
