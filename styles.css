@@ -98,15 +98,19 @@ header{position:sticky;top:0;z-index:1200;gap:12px}
 .sidebar-backdrop{position:fixed;inset:68px 0 0;background:rgba(12,31,26,.35);z-index:1240}
 .workspace{max-width:1600px}
 .mobile{display:none}
-.settings-overlay{position:fixed;inset:0;z-index:1500;display:grid;place-items:center;padding:18px;background:rgba(13,35,29,.38)}
-.settings-card{width:min(100%,480px);padding:22px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:0 20px 60px #102d2430}
-.settings-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
-.settings-heading h2{margin:0;color:var(--deep);font-size:20px}
-.settings-details{display:grid;gap:14px}
-.settings-details>div{display:grid;gap:5px;padding:12px;border-radius:9px;background:#f5f8f5}
+/* Settings is a dedicated, scrollable workspace below the persistent app header.
+   Keep the desktop navigation visible and leave the mobile menu button unobstructed. */
+.settings-overlay{position:fixed;inset:68px 0 0 225px;z-index:1100;display:block;overflow-y:auto;overscroll-behavior:contain;padding:clamp(18px,3vw,36px);background:#f5f8f6}
+.settings-card{width:min(100%,920px);min-height:100%;margin:0 auto;padding:clamp(18px,3vw,30px);border-radius:14px;background:#fff;border:1px solid var(--line);box-shadow:0 8px 28px #102d2410}
+.settings-heading{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-2px 0 20px;padding:2px 0 14px;background:#fff;border-bottom:1px solid var(--line)}
+.settings-heading h2{margin:0;color:var(--deep);font-size:22px}
+.settings-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.settings-details>div{display:grid;gap:5px;padding:12px;border-radius:9px;background:#f5f8f5;min-width:0}
 .settings-details small{font-size:9px}
 .settings-details b{font-size:13px;color:var(--deep);overflow-wrap:anywhere}
-@media(max-width:680px){header{height:60px;padding:0 12px}.sidebar{top:60px}.sidebar-backdrop{inset:60px 0 0}.app{min-height:calc(100svh - 60px)}.workspace{padding:16px 12px}.brand{font-size:14px}.brand .mark{width:36px;height:36px}.icon-button,.profile-button{width:38px;height:38px}.profile-dropdown{right:-3px}.mobile{display:block;margin-bottom:15px}.sidebar nav{grid-template-columns:1fr}.sidebar{margin:0;border-radius:0;padding:20px 14px}}
+#sms-settings-card{max-width:760px}
+#sms-settings-card input:not([type=checkbox]){width:100%;max-width:100%;margin-bottom:10px}
+@media(max-width:680px){header{height:60px;padding:0 12px}.sidebar{top:60px}.sidebar-backdrop{inset:60px 0 0}.app{min-height:calc(100svh - 60px)}.workspace{padding:16px 12px}.brand{font-size:14px}.brand .mark{width:36px;height:36px}.icon-button,.profile-button{width:38px;height:38px}.profile-dropdown{right:-3px}.mobile{display:block;margin-bottom:15px}.sidebar nav{grid-template-columns:1fr}.sidebar{margin:0;border-radius:0;padding:20px 14px}.settings-overlay{inset:60px 0 0;padding:12px;background:#f5f8f6}.settings-card{width:100%;min-height:100%;padding:16px;border-radius:10px}.settings-heading h2{font-size:19px}}
 
 /* Learner register cascading filters */
 .filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:12px 0 18px}.filter-grid>div{min-width:0}.filter-grid select{width:100%}
