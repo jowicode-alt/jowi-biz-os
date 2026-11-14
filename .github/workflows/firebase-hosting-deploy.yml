@@ -2,6 +2,13 @@ name: Deploy InterCampus Attendance to Firebase Hosting
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'index.html'
+      - 'favicon.svg'
+      - 'manifest.webmanifest'
 
 permissions:
   contents: read
