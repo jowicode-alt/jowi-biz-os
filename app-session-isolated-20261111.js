@@ -119,6 +119,9 @@ async function refresh(){
   renderAssignedLocation();
   const courseUnitSnaps=await Promise.all(st.enrolments.filter(en=>en.courseUnitId).map(en=>getDoc(doc(db,"institutions",institutionId,"courseUnits",en.courseUnitId))));
   st.courseUnits=courseUnitSnaps.filter(x=>x.exists()).map(x=>({id:x.id,...x.data()}));
+  const programmeIds=[...new Set(st.enrolments.map(en=>String(en.programmeId||"")).filter(Boolean))];
+  const programmeSnaps=await Promise.all(programmeIds.map(id=>getDoc(doc(db,"institutions",institutionId,"programmes",id))));
+  st.programmes=programmeSnaps.filter(x=>x.exists()).map(x=>({id:x.id,...x.data()}));
   const [attendanceSnap,absenceSnap]=await Promise.all([getDocs(query(col("attendance"),where("studentId","==",uid))),getDocs(query(col("absences"),where("studentId","==",uid)))]);
   st.attendanceHistory=[...attendanceSnap.docs,...absenceSnap.docs].map(d=>({id:d.id,...d.data()})).sort((a,b)=>{const at=a.checkedAt||a.finalizedAt,bt=b.checkedAt||b.finalizedAt,av=at?.toMillis?.()??(at?.seconds?at.seconds*1000:0),bv=bt?.toMillis?.()??(bt?.seconds?bt.seconds*1000:0);return bv-av});
   st.sessions=campusId?await fetchStudentSessions(st.enrolments,learner,campusId):[];
