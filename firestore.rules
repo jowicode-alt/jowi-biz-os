@@ -531,7 +531,7 @@ service cloud.firestore {
      || (memberRole(id) == 'student' && resource.data.studentId == request.auth.uid)
     );
          function attendancePayloadValid(data, docId) {
-      return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','programmeId','studyYear','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
+      return data.keys().hasOnly(['sessionId','studentId','studentName','studentNumber','classId','courseUnitId','courseUnitName','programmeId','studyYear','academicYearId','semesterId','teachingGroupId','enrolmentId','status','deviceId','code','location','accuracyMeters','checkedAt'])
        && data.sessionId is string && data.studentId is string
        && data.studentName is string && data.studentNumber is string
        && data.classId is string && data.status == 'present'
