@@ -56,6 +56,7 @@ jobs:
           JJUMA_SECRET_KEY: ${{ secrets.JJUMA_SECRET_KEY }}
           JJUMA_WEBHOOK_SECRET: ${{ secrets.JJUMA_WEBHOOK_SECRET }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JOWI_BIZ_OS }}
+          SMS_ENCRYPTION_KEY: ${{ secrets.INTERCAMPUS_SMS_ENCRYPTION_KEY }}
         run: |
           node -e 'const fs=require("fs");const s={JJUMA_PUBLIC_KEY:process.env.JJUMA_PUBLIC_KEY,JJUMA_SECRET_KEY:process.env.JJUMA_SECRET_KEY,FIREBASE_SERVICE_ACCOUNT_JSON:process.env.FIREBASE_SERVICE_ACCOUNT_JSON};if(process.env.SMS_ENCRYPTION_KEY)s.SMS_ENCRYPTION_KEY=process.env.SMS_ENCRYPTION_KEY;if(process.env.JJUMA_WEBHOOK_SECRET)s.JJUMA_WEBHOOK_SECRET=process.env.JJUMA_WEBHOOK_SECRET;fs.writeFileSync(process.env.RUNNER_TEMP+"/worker-secrets.json",JSON.stringify(s),{mode:0o600});'
           npx wrangler deploy --secrets-file "$RUNNER_TEMP/worker-secrets.json"
