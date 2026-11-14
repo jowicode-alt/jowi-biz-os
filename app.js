@@ -295,9 +295,14 @@ $("#export-pdf").onclick=async()=>{
   const categoryLabel=key=>key==="__class__"?"Class sessions":key==="__combined__"?"Combined / all session groups":key==="__uncategorised__"?"Uncategorised":(st.teachingGroups.find(g=>g.id===key)?.name||"Session group");
   const grouped=new Map();
   for(const r of records){const session=sessionsById.get(r.sessionId);if(!session)continue;const key=categoryKey(session);if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push({record:r,session});}
-  const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"});
+  const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a4",orientation:"portrait"});
+  const pageWidth=pdf.internal.pageSize.getWidth(),pageHeight=pdf.internal.pageSize.getHeight();
+  const left=12,usableWidth=pageWidth-24;
   const categories=[...grouped.keys()].sort((a,b)=>a.localeCompare(b));
   if(!categories.length)throw Error("No attendance records match the selected report filters.");
+  const widths=[13,11,11,19,23,13,18,14,23,27,12];
+  const headers=["Date","Start","End","Registration no.","Student name","Study year","Academic year","Semester","Programme","Course unit","Status"];
+  const lineHeight=2.7;
   categories.forEach((category,categoryIndex)=>{
    if(categoryIndex)pdf.addPage();
    let y=14;const items=grouped.get(category)||[],categoryName=categoryLabel(category);
@@ -309,37 +314,51 @@ $("#export-pdf").onclick=async()=>{
    const presentCount=items.filter(x=>x.record.status==="present").length;
    const absentCount=items.filter(x=>x.record.status==="absent").length;
    const recorded=presentCount+absentCount,percentage=recorded?Math.round(presentCount/recorded*100):0;
-   pdf.setFontSize(16);pdf.text("STUDENT ATTENDANCE REPORT",14,y);y+=7;
-   pdf.setFontSize(8.5);
-   pdf.text("Institution: "+String(st.inst?.name||"").slice(0,100),14,y);y+=5;
-   pdf.text("Campus: "+selectedCampus+"    Session category: "+categoryName+"    Generated: "+new Date().toLocaleString(),14,y);y+=5;
+   const writeWrapped=(label,value,size=8.2)=>{pdf.setFontSize(size);const lines=pdf.splitTextToSize(label+String(value??""),usableWidth);const needed=lines.length*4.1+1;if(y+needed>pageHeight-16){pdf.addPage();y=14}pdf.text(lines,left,y);y+=needed};
+   pdf.setFontSize(15);pdf.text("STUDENT ATTENDANCE REPORT",left,y);y+=7;
+   writeWrapped("Institution: ",st.inst?.name||"");
+   writeWrapped("Campus: ",selectedCampus+"    |    Session category: "+categoryName);
+   writeWrapped("Generated: ",new Date().toLocaleString());
    const department=filters.programme?(st.programmes.find(p=>p.id===filters.programme)?.department||selectedProgramme):"All departments / programmes";
-   pdf.text("Department: "+String(department).slice(0,100)+"    Academic year: "+selectedYear+"    Semester: "+selectedSemester,14,y);y+=7;
-   pdf.setFontSize(9);
-   pdf.text("Summary: Sessions held "+uniqueSessions.length+"   Present "+presentCount+"   Absent "+absentCount+"   Attendance "+percentage+"%",14,y);y+=7;
-   const rows=[["Date","Start","End","Registration no.","Student name","Study year","Academic year","Semester","Programme","Course unit","Status"],...items.map(({record:r,session:s})=>{
+   writeWrapped("Department: ",department+"    |    Academic year: "+selectedYear+"    |    Semester: "+selectedSemester);
+   writeWrapped("Summary: ","Sessions held "+uniqueSessions.length+"   |   Present "+presentCount+"   |   Absent "+absentCount+"   |   Attendance "+percentage+"%",8.5);
+   y+=2;
+   const rows=items.map(({record:r,session:s})=>{
     const unit=st.courseUnits.find(u=>u.id===s.courseUnitId),opened=ms(s.openedAt||s.createdAt),ended=ms(s.expiresAt);
     const programme=st.programmes.find(p=>p.id===r.programmeId)?.name||klass(r.classId)||"";
     const academicYear=st.academicYears.find(a=>a.id===(r.academicYearId||s.academicYearId))?.name||r.academicYearId||s.academicYearId||"";
     const semester=st.semesters.find(a=>a.id===(r.semesterId||s.semesterId))?.name||r.semesterId||s.semesterId||"";
     return [opened?new Date(opened).toLocaleDateString():"",opened?new Date(opened).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",ended?new Date(ended).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"",r.studentNumber||"",r.studentName||"",r.studyYear||s.studyYear||"",academicYear,semester,programme,unit?.name||s.title||"Course session",r.status||""];
-   })];
-   const widths=[18,15,15,25,32,18,24,20,35,45,18];pdf.setFontSize(7.2);
-   for(let ri=0;ri<rows.length;ri++){
-    const row=rows[ri];let x=12;const rowH=ri===0?8:6;
-    if(y+rowH>177){pdf.addPage();y=14;pdf.setFontSize(7.5)}
-    if(ri===0){pdf.setFillColor(230,240,234);pdf.rect(11,y-5,275,8,"F")}
-    for(let ci=0;ci<row.length;ci++){const value=pdf.splitTextToSize(String(row[ci]??""),widths[ci]-1)[0]||"";pdf.text(value,x,y);x+=widths[ci]}
-    y+=rowH;
-   }
-   if(y>174){pdf.addPage();y=18}
-   y+=8;pdf.setFontSize(8);
-   pdf.text("Lecturer: ______________________________",14,y);
-   pdf.text("Coordinator: ___________________________",112,y);
-   pdf.text("Head of Department: ____________________",210,y);
+   });
+   const drawTableHeader=()=>{
+    pdf.setFontSize(6.2);pdf.setFont("helvetica","bold");
+    const headerLines=headers.map((v,i)=>pdf.splitTextToSize(v,widths[i]-2));
+    const headerHeight=Math.max(6,Math.max(...headerLines.map(a=>a.length))*lineHeight+2.5);
+    if(y+headerHeight>pageHeight-13){pdf.addPage();y=14}
+    pdf.setFillColor(230,240,234);pdf.rect(left-1,y-1,widths.reduce((a,b)=>a+b,0)+2,headerHeight,"F");
+    let x=left;
+    headerLines.forEach((lines,i)=>{pdf.text(lines,x+1,y+2.2,{lineHeightFactor:1});x+=widths[i]});
+    y+=headerHeight;pdf.setFont("helvetica","normal");
+   };
+   drawTableHeader();
+   rows.forEach(row=>{
+    pdf.setFontSize(6.1);
+    const wrapped=row.map((value,i)=>pdf.splitTextToSize(String(value??""),widths[i]-2));
+    const lineCount=Math.max(1,...wrapped.map(a=>a.length));
+    const rowHeight=Math.max(5,lineCount*lineHeight+2.2);
+    if(y+rowHeight>pageHeight-13){pdf.addPage();y=14;drawTableHeader()}
+    let x=left;
+    wrapped.forEach((lines,i)=>{pdf.text(lines,x+1,y+2.1,{lineHeightFactor:1});x+=widths[i]});
+    y+=rowHeight;
+   });
+   if(y+22>pageHeight-12){pdf.addPage();y=18}else y+=8;
+   pdf.setFontSize(7.5);
+   pdf.text("Lecturer: __________________________",left,y);
+   pdf.text("Coordinator: ______________________",left+62,y);
+   pdf.text("Head of Department: _______________",left+124,y);
   });
   pdf.save("intercampus-session-attendance-reports.pdf");
-  msg("report-message","Filtered A4 landscape reports downloaded separately for each session category, with summary totals and signature lines.",true);
+  msg("report-message","Filtered A4 portrait reports downloaded separately for each session category. Long values wrap onto additional lines so report details are retained.",true);
  }catch(e){msg("report-message",err(e))}
  finally{btn.disabled=false}
 };
