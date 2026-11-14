@@ -451,7 +451,23 @@ service cloud.firestore {
       && request.resource.data.createdBy == get(invitePath(request.auth.token.email, id)).data.createdBy
       && request.resource.data.keys().hasOnly(['name','studentNumber','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','enrollmentYear','authUid','deviceId','status','contact','parentName','parentPhone','dateOfBirth','gender','photoDataUrl','createdAt','createdBy'])
     );
-    allow update: if canManageClass(id, request.resource.data.classId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','updatedAt','updatedBy']);
+    allow update: if (
+      canManageClass(id, request.resource.data.classId)
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','classId','campusId','programmeId','courseUnitIds','teachingGroupId','studyYear','academicYearId','semesterId','updatedAt','updatedBy'])
+    ) || (
+      canManageClass(id, resource.data.classId)
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceId','deviceResetAt','deviceResetBy'])
+      && request.resource.data.deviceId == ''
+      && request.resource.data.deviceResetBy == request.auth.uid
+    ) || (
+      inInstitution(id) && memberRole(id) == 'student'
+      && request.auth.uid == docId
+      && resource.data.authUid == request.auth.uid
+      && resource.data.deviceId == ''
+      && request.resource.data.deviceId is string
+      && request.resource.data.deviceId.size() >= 16
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deviceId'])
+    );
     allow delete: if false;
    }
    match /sessions/{docId} {
