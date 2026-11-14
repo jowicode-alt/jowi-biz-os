@@ -493,18 +493,23 @@ service cloud.firestore {
     );
     allow delete: if false;
    }
-   // Each learner can read only their own session feed. Staff can publish a feed
-   // entry only for a learner who is eligible for the session they opened.
    match /studentSessionFeeds/{studentUid}/sessions/{sessionId} {
-    allow get, list: if inInstitution(id) && memberRole(id) == 'student'
-      && request.auth.uid == studentUid;
-    allow create, update: if validStudentFeedCreate(id,studentUid,sessionId)
-      && request.resource.data.keys().hasOnly(['sessionId','campusId','courseUnitId','createdBy','createdAt'])
-      && request.resource.data.sessionId == sessionId
+    allow get, list: if signedIn() && request.auth.uid == studentUid && inInstitution(id) && memberRole(id) == 'student';
+    allow create: if request.resource.data.sessionId == sessionId
+      && request.resource.data.createdBy == request.auth.uid
       && request.resource.data.campusId is string
       && request.resource.data.courseUnitId is string
+      && request.resource.data.createdAt is timestamp
+      && request.resource.data.keys().hasOnly(['sessionId','campusId','courseUnitId','createdBy','createdAt'])
+      && validStudentFeedCreate(id,studentUid,sessionId);
+    allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['createdAt'])
+      && request.resource.data.sessionId == resource.data.sessionId
+      && request.resource.data.campusId == resource.data.campusId
+      && request.resource.data.courseUnitId == resource.data.courseUnitId
+      && request.resource.data.createdBy == resource.data.createdBy
       && request.resource.data.createdBy == request.auth.uid
-      && request.resource.data.createdAt == request.time;
+      && request.resource.data.createdAt is timestamp
+      && validStudentFeedCreate(id,studentUid,sessionId);
     allow delete: if false;
    }
    match /sessions/{docId} {
