@@ -8,10 +8,10 @@
   "theme_color": "#123d35",
   "icons": [
     {
-      "src": "/intercampus-logo.svg?v=3",
+      "src": "/favicon.svg?v=5",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }
