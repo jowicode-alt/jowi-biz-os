@@ -493,22 +493,20 @@ function buildAttendanceReportGroups(records,filters){
    const groupKey=[campusId,programmeId,session.courseUnitId,studyYear,semesterId,lecturerId].join("|");
    if(!groups.has(groupKey))groups.set(groupKey,{campusId,programmeId,courseUnitId:session.courseUnitId,studyYear,semesterId,lecturerId,lecturerName,dates:new Map(),students:new Map()});
    const group=groups.get(groupKey);
-   if(!group.dates.has(dateKey))group.dates.set(dateKey,{dateKey,sessions:[]});
-   const dateEntry=group.dates.get(dateKey);if(!dateEntry.sessions.some(x=>x.id===session.id))dateEntry.sessions.push(session);
+   if(!group.dates.has(session.id))group.dates.set(session.id,session);
    const sessionGroupId=en.teachingGroupId||session.teachingGroupId||"";
    const sessionGroup=st.teachingGroups.find(x=>x.id===sessionGroupId)?.name||(session.sessionGroupMode==="combined"?"Combined":"");
-   if(!group.students.has(uid))group.students.set(uid,{uid,student,registration:student.studentNumber||student.registrationNumber||student.admissionNumber||"",name:student.name||"",programmeId,sessionGroup,statusByDate:new Map()});
+   if(!group.students.has(uid))group.students.set(uid,{uid,student,registration:student.studentNumber||student.registrationNumber||student.admissionNumber||"",name:student.name||"",programmeId,sessionGroup,statusBySession:new Map()});
    const person=group.students.get(uid);
    if(!person.sessionGroup&&sessionGroup)person.sessionGroup=sessionGroup;
    const rows=bySession.get(session.id)||[];
    const studentRecords=rows.filter(r=>r.studentId===uid);
    const present=studentRecords.some(r=>String(r.status||"").toLowerCase()==="present");
    const absent=studentRecords.some(r=>String(r.status||"").toLowerCase()==="absent");
-   const current=person.statusByDate.get(dateKey);
-   person.statusByDate.set(dateKey,present||current==="Present"?"Present":absent||sessionHasEnded(session)?"Absent":current||"—");
+   person.statusBySession.set(session.id,present?"Present":absent||sessionHasEnded(session)?"Absent":"—");
   }
  }
- return [...groups.values()].map(g=>({...g,dates:[...g.dates.values()].sort((a,b)=>a.dateKey.localeCompare(b.dateKey)),students:[...g.students.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}))})).filter(g=>g.dates.length&&g.students.length).sort((a,b)=>{
+ return [...groups.values()].map(g=>({...g,sessions:[...g.dates.values()].sort((a,b)=>ms(a.openedAt||a.createdAt)-ms(b.openedAt||b.createdAt)),students:[...g.students.values()].sort((a,b)=>a.name.localeCompare(b.name,undefined,{sensitivity:"base"}))})).filter(g=>g.sessions.length&&g.students.length).sort((a,b)=>{
   const key=x=>[campus(x.campusId),st.programmes.find(p=>p.id===x.programmeId)?.name||"",st.courseUnits.find(u=>u.id===x.courseUnitId)?.name||"",x.studyYear,x.semesterId].join("|");
   return key(a).localeCompare(key(b),undefined,{sensitivity:"base"});
  });
@@ -521,14 +519,12 @@ function reportGroupTitle(group){
  const lecturer=group.lecturerName||"Lecturer not recorded";
  return {campusName,programmeName,unitName,semesterName,lecturer,title:[campusName,programmeName,unitName,"Study year "+(group.studyYear||"—"),semesterName,lecturer].join(" | ")};
 }
-function reportDateColumnLabel(dateEntry){
- const sessions=dateEntry.sessions||[];
+function reportSessionColumnLabel(session){
  const ms=v=>v?.toMillis?v.toMillis():v?.seconds?v.seconds*1000:Number(v)||0;
- const starts=sessions.map(s=>ms(s.openedAt||s.createdAt)).filter(Boolean).sort((a,b)=>a-b);
- const ends=sessions.map(s=>ms(s.closedAt||s.expiresAt)).filter(Boolean).sort((a,b)=>a-b);
- const date=reportDateLabel(dateEntry.dateKey);
- const start=starts.length?reportClock(starts[0]):"Start unavailable";
- const end=ends.length?reportClock(ends[ends.length-1]):"Ongoing";
+ const opened=ms(session.openedAt||session.createdAt),closed=ms(session.closedAt||session.expiresAt);
+ const date=opened?reportDateLabel(reportDateKey(opened)):"Date unavailable";
+ const start=opened?reportClock(opened):"Start unavailable";
+ const end=closed?reportClock(closed):"Ongoing";
  return date+" · "+start+"–"+end;
 }
 function renderAttendanceReportPreview(groups){
@@ -536,10 +532,10 @@ function renderAttendanceReportPreview(groups){
  if(!groups.length){box.className="report-preview surface pale";box.textContent="No attendance sessions and eligible learners match these filters.";return}
  box.className="report-preview surface pale";
  box.innerHTML=groups.map(group=>{
-  const title=reportGroupTitle(group),dates=group.dates;
-  const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(reportDateColumnLabel)];
-  const rows=group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")]);
-  return '<section class="report-preview-group"><h3 class="report-preview-title">'+safe(title.title)+'</h3><p class="tiny">'+group.students.length+' learners · '+dates.length+' attendance date(s) · Session times shown in '+safe(institutionTimeZone())+' (institution local time).</p><table><thead><tr>'+headings.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+safe(x)+'</td>').join("")+'</tr>').join("")+'</tbody></table></section>';
+  const title=reportGroupTitle(group),sessions=group.sessions;
+  const headings=["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...sessions.map(reportSessionColumnLabel)];
+  const rows=group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...sessions.map(s=>p.statusBySession.get(s.id)||"—")]);
+  return '<section class="report-preview-group"><h3 class="report-preview-title">'+safe(title.title)+'</h3><p class="tiny">'+group.students.length+' learners · '+sessions.length+' individual attendance session(s) · Times shown in '+safe(institutionTimeZone())+' (institution local time).</p><table><thead><tr>'+headings.map(x=>'<th>'+safe(x)+'</th>').join("")+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+safe(x)+'</td>').join("")+'</tr>').join("")+'</tbody></table></section>';
  }).join("");
 }
 let reportPreviewTimer=null;
@@ -563,16 +559,16 @@ $("#export-pdf").onclick=async()=>{
   const {jsPDF}=window.jspdf,pdf=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"});
   groups.forEach((group,groupIndex)=>{
    if(groupIndex)pdf.addPage();
-   const title=reportGroupTitle(group),dates=group.dates;
+   const title=reportGroupTitle(group),sessions=group.sessions;
    let y=13;
    pdf.setFontSize(12);pdf.text("STUDENT ATTENDANCE REPORT",10,y);y+=6;
    pdf.setFontSize(8);
    pdf.text("Campus: "+title.campusName+" | Programme: "+title.programmeName,10,y);y+=4.5;
    pdf.text("Course unit: "+title.unitName+" | Study year: "+(group.studyYear||"—")+" | Semester: "+title.semesterName,10,y);y+=4.5;
    pdf.text("Lecturer who opened session: "+title.lecturer+" | Institution: "+String(st.inst?.name||""),10,y);y+=4.5;
-   pdf.text("Session dates and times: "+institutionTimeZone()+" (institution local time)",10,y);y+=6;
-   const rows=[["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...dates.map(reportDateColumnLabel)],...group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...dates.map(d=>p.statusByDate.get(d.dateKey)||"Absent")])];
-   const pageWidth=277,baseWidths=[8,24,32,27,18],fixedWidth=baseWidths.reduce((x,y)=>x+y,0),dateWidth=dates.length?Math.max(3,(pageWidth-fixedWidth)/dates.length):pageWidth-fixedWidth,widths=[...baseWidths,...dates.map(()=>dateWidth)];
+   pdf.text("Individual session dates and times: "+institutionTimeZone()+" (institution local time)",10,y);y+=6;
+   const rows=[["NO","STUDENT REGISTRATION NUMBER","FULL NAMES","PROGRAM/COURSE","SESSION",...sessions.map(reportSessionColumnLabel)],...group.students.map((p,i)=>[i+1,p.registration,p.name,title.programmeName,p.sessionGroup||"—",...sessions.map(s=>p.statusBySession.get(s.id)||"—")])];
+   const pageWidth=277,baseWidths=[8,24,32,27,18],fixedWidth=baseWidths.reduce((x,y)=>x+y,0),dateWidth=sessions.length?Math.max(3,(pageWidth-fixedWidth)/sessions.length):pageWidth-fixedWidth,widths=[...baseWidths,...sessions.map(()=>dateWidth)];
    const minWidth=Math.min(...widths),fontSize=Math.max(3.6,Math.min(7,minWidth<6?3.8:minWidth<8?4.4:minWidth<11?5.2:6.2)),lineHeight=fontSize*0.48;
    pdf.setFontSize(fontSize);
    const prepareRow=row=>row.map((value,index)=>{
