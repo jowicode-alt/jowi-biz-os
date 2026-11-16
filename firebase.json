@@ -52,6 +52,24 @@
           }
         ]
       }
+    ],
+    "rewrites": [
+      {
+        "source": "/login",
+        "destination": "/portal.html"
+      },
+      {
+        "source": "/features",
+        "destination": "/features.html"
+      },
+      {
+        "source": "/pricing",
+        "destination": "/pricing.html"
+      },
+      {
+        "source": "/contact",
+        "destination": "/contact.html"
+      }
     ]
   },
   "firestore": {

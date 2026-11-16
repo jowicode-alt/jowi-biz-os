@@ -1,7 +1,7 @@
 {
   "name": "InterCampus Attendance",
   "short_name": "InterCampus",
-  "start_url": "/",
+  "start_url": "/portal.html",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
